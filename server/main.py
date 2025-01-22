@@ -107,7 +107,7 @@ if is_development:
                 return Response(status_code=404)
 else:
     # 本番環境では、ビルドされた静的ファイルを配信
-    static_dir = Path(__file__).parent.parent / "client" / "dist"
+    static_dir = Path(__file__).parent.parent / "dist" / "public"
     if static_dir.exists() and (static_dir / "assets").exists():
         app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
     

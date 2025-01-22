@@ -1,15 +1,15 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send } from "lucide-react";
-import { Task } from "@/pages/Home";
-import { TaskSuggestion, convertSuggestionToTask } from "@/lib/taskSuggestion";
+import type { Task } from "@/pages/Home";
+import type { TaskSuggestion } from "@/lib/taskSuggestion";
+import { convertSuggestionToTask } from "@/lib/taskSuggestion";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Rnd } from "react-rnd";
-
 interface ChatPanelProps {
   onNewTask: (task: Task) => void;
   ws: WebSocket | null;
@@ -29,14 +29,14 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
   useEffect(() => {
     if (!ws) return;
 
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
         console.log('Received WebSocket message:', data);
@@ -51,10 +51,10 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
 
           setMessages(prev => [...prev, newMessage]);
           setLoading(false);
-          console.log('Added new message:', newMessage);
+          console.log('Added new translated message:', newMessage);
 
           if (data.suggested_tasks?.length > 0) {
-            data.suggested_tasks.forEach((suggestion: TaskSuggestion) => {
+            for (const suggestion of data.suggested_tasks) {
               console.log('Creating task from suggestion:', suggestion);
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
@@ -62,12 +62,12 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
                   task: convertSuggestionToTask(suggestion)
                 }));
               }
-            });
+            }
           }
         } else if (data.type === 'error') {
           setLoading(false);
           toast({
-            title: "エラー",
+            title: "Error",
             description: data.message,
             variant: "destructive",
           });
@@ -76,8 +76,8 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
         setLoading(false);
         console.error('Failed to process WebSocket message:', error);
         toast({
-          title: "エラー",
-          description: "メッセージの処理中にエラーが発生しました",
+          title: "Error",
+          description: "An error occurred while processing the message",
           variant: "destructive",
         });
       }
@@ -85,17 +85,17 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
 
     ws.addEventListener('message', handleMessage);
     return () => ws.removeEventListener('message', handleMessage);
-  }, [ws, onNewTask, toast]);
+  }, [ws, toast]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
   const handleSend = async () => {
     if (!input.trim() || !ws || ws.readyState !== WebSocket.OPEN) {
       toast({
-        title: "エラー",
-        description: "メッセージを送信できません",
+        title: "Error",
+        description: "Unable to send message",
         variant: "destructive",
       });
       return;
@@ -120,8 +120,8 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
       console.error('Failed to send message:', error);
       setLoading(false);
       toast({
-        title: "エラー",
-        description: "メッセージの送信に失敗しました",
+        title: "Error",
+        description: "Failed to send message",
         variant: "destructive",
       });
     }
@@ -139,9 +139,8 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
               animate={{ opacity: [0, 1, 0] }}
               transition={{
                 duration: 1,
-                repeat: Infinity,
+                repeat: Number.POSITIVE_INFINITY,
                 delay: i * 0.2,
-                ease: "easeInOut"
               }}
             >
               .
@@ -168,7 +167,7 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
       <Card className="h-full flex flex-col shadow-lg border-2">
         <div className="p-4 border-b cursor-move drag-handle">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">チャット</h2>
+            <h2 className="text-lg font-semibold">Chat</h2>
           </div>
         </div>
         <ScrollArea className="flex-1">
@@ -192,7 +191,7 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
                   <div className="mt-2 space-y-2">
                     {msg.suggestedTasks.map((task, index) => (
                       <div key={index} className="text-sm text-muted-foreground">
-                        提案されたタスク: {task.name} ({Math.round(task.confidence * 100)}% 信頼度)
+                        Suggested task: {task.name} ({Math.round(task.confidence * 100)}% confidence)
                       </div>
                     ))}
                   </div>
@@ -210,7 +209,7 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="メッセージを入力..."
+              placeholder="Enter message..."
               onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               disabled={loading || !ws || ws.readyState !== WebSocket.OPEN}
             />

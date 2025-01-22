@@ -7,6 +7,7 @@
 [![Version](https://img.shields.io/github/v/release/yourusername/cafe)](https://github.com/yourusername/cafe/releases)
 [![Dependencies](https://status.david-dm.org/gh/yourusername/cafe.svg)](https://david-dm.org/yourusername/cafe)
 
+
 CAFE is a self-learning, autonomous AI agent capable of automating multi-scale and multi-modal AI models. It dynamically spins up containerized environments as needed, leveraging self-learning capabilities to optimize workflow automation.
 
 ## Features
@@ -18,20 +19,54 @@ CAFE is a self-learning, autonomous AI agent capable of automating multi-scale a
 
 ### Supported Use Cases
 
-1. Email Automation Support
+1. Web Scraping → Image OCR → LLM Summarization
+   - Collect articles and images from news sites and blogs
+   - Extract text from scraped images (ads, screenshots)
+   - Generate summaries and key points using LLMs
+   - Create dashboards for easy content viewing
+
+2. Speech Recognition → Sentiment Analysis → Response Generation
+   - Convert meeting audio and customer calls to text
+   - Analyze emotional context (positive, negative, neutral)
+   - Display real-time alerts for customer emotions
+   - Generate appropriate responses based on sentiment
+   - Utilize FAQ and past cases for chatbot responses
+
+3. Video Information Extraction → Topic Classification → LLM Summarization
+   - Convert video audio to text (ASR)
+   - Extract key frames and visualize subtitles
+   - Classify content by theme (sports, politics, entertainment)
+   - Label video segments by topic
+   - Generate highlights and quick summaries
+
+4. Text Analysis → Intent Detection → Automated Tagging
+   - Process emails and social media posts
+   - Classify multiple intents (complaints, inquiries, requests)
+   - Analyze keywords and context
+   - Auto-tag with priority levels and support requirements
+   - Streamline customer support workflow
+
+5. Image Classification → Similar Image Search → Recommendation Generation
+   - Classify uploaded images using pre-trained models
+   - Extract metadata (clothing category, color, brand features)
+   - Search database for similar images
+   - Generate recommendations based on visual information
+   - Implement visual-based recommendation engine
+
+6. Email Automation Support
    - ChatGPT + Gmail integration
    - Template-based auto-generation
 
-2. Chat Task Extraction (Slack, Teams)
+7. Chat Task Extraction (Slack, Teams)
    - Automatic chat history summarization
    - Automated ToDo list generation
 
-3. Meeting-Related Tasks
+8. Meeting-Related Tasks
    - Schedule coordination automation
    - Minutes generation
    - Follow-up email creation
 
-4. Additional Features
+9. Additional Features
    - Proposal & presentation draft creation
    - Telemarketing list generation
    - Automated customer inquiry handling
@@ -83,7 +118,7 @@ docker-compose up -d
 
 ```bash
 cd server
-alembic upgrade head
+rye run alembic upgrade head
 ```
 
 5. Start development servers

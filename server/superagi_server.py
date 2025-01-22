@@ -58,22 +58,23 @@ class WorkflowManager:
             completion = await self.openai_client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": """あなたはワークフロー分析アシスタントです。
-ユーザーのリクエストを分析し、自動化可能なワークフロータスクを提案してください。
-必ず以下のJSON形式で応答してください。他の形式は受け付けません。
+                    {"role": "system", "content": """You are a workflow analysis assistant.
+Please analyze user requests and suggest automatable workflow tasks.
+IMPORTANT: Always respond in English, regardless of the input language.
+Always respond in the following JSON format. No other format is accepted.
 
-例：
+Example:
 {
-    "message": "3つの自動化タスクを提案します：メール作成、送信、結果集計",
+    "message": "Here are 3 automation tasks: email creation, sending, and result aggregation",
     "suggested_tasks": [
         {
             "type": "Email Creation",
             "name": "Create Sales Email",
-            "description": "テンプレートを使用してメールを作成",
+            "description": "Create email using template",
             "confidence": 0.9,
             "inputs": {
-                "template": "メールテンプレート",
-                "data": "顧客データ"
+                "template": "email template",
+                "data": "customer data"
             },
             "dependencies": []
         }
@@ -146,29 +147,29 @@ class WorkflowManager:
 
         try:
             tools_str = ", ".join(task["tools"])
-            system_prompt = """あなたはタスク実行アシスタントです。
-与えられたタスクを実行し、必ず以下の形式でJSONを返してください。他の形式は受け付けません。
+            system_prompt = """You are a task execution assistant.
+Execute the given task and always return JSON in the following format. No other format is accepted.
 
-例：
+Example:
 {
-    "action": "メール作成の実行",
-    "result": "テンプレートを使用して10件のメールを作成しました",
+    "action": "Execute email creation",
+    "result": "Created 10 emails using the template",
     "output_data": {
         "processed_items": 10,
         "success_rate": 1.0,
-        "details": "すべてのメールが正常に作成されました"
+        "details": "All emails were created successfully"
     }
 }"""
 
-            task_prompt = f"""以下のタスクを実行してください：
+            task_prompt = f"""Please execute the following task:
 
-タスク情報：
-- タイプ: {task['type']}
-- 名前: {task['name']}
-- 入力データ: {json.dumps(task['inputs'], ensure_ascii=False)}
-- 利用可能なツール: {tools_str}
+Task Information:
+- Type: {task['type']}
+- Name: {task['name']}
+- Input Data: {json.dumps(task['inputs'], ensure_ascii=False)}
+- Available Tools: {tools_str}
 
-必ずJSONフォーマットで結果を返してください。"""
+Please return the result in JSON format."""
 
             completion = await self.openai_client.chat.completions.create(
                 model="gpt-4",
