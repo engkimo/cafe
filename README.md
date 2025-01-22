@@ -1,11 +1,12 @@
 # CAFE (Composite AI Flow Engine)
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-[![GitHub Actions](https://github.com/yourusername/cafe/workflows/CI/badge.svg)](https://github.com/yourusername/cafe/actions)
+
 [![codecov](https://codecov.io/gh/yourusername/cafe/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/cafe)
+
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://yourusername.github.io/cafe)
+
 [![Version](https://img.shields.io/github/v/release/yourusername/cafe)](https://github.com/yourusername/cafe/releases)
-[![Dependencies](https://status.david-dm.org/gh/yourusername/cafe.svg)](https://david-dm.org/yourusername/cafe)
 
 
 CAFE is a self-learning, autonomous AI agent capable of automating multi-scale and multi-modal AI models. It dynamically spins up containerized environments as needed, leveraging self-learning capabilities to optimize workflow automation.
