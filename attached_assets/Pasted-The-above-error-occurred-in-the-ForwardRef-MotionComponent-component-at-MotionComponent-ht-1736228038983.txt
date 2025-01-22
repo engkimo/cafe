@@ -1,0 +1,44 @@
+The above error occurred in the <ForwardRef(MotionComponent)> component:
+
+    at MotionComponent (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/framer-motion.js?v=2cfce959:6536:40)
+    at ThinkingIndicator
+    at div
+    at div
+    at div
+    at https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-KICXOBMF.js?v=3b8c8f85:115:13
+    at https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/@radix-ui_react-scroll-area.js?v=3b8c8f85:118:13
+    at div
+    at https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-KICXOBMF.js?v=3b8c8f85:115:13
+    at Provider (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-KICXOBMF.js?v=3b8c8f85:39:15)
+    at https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/@radix-ui_react-scroll-area.js?v=3b8c8f85:56:7
+    at _c (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/src/components/ui/scroll-area.tsx:21:11)
+    at div
+    at _c (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/src/components/ui/card.tsx:20:11)
+    at ChatPanel (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/src/components/ChatPanel.tsx:27:37)
+    at div
+    at PanelWithForwardedRef (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/react-resizable-panels.js?v=3b8c8f85:40:3)
+    at forwardRef(Panel)
+    at div
+    at PanelGroupWithForwardedRef (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/react-resizable-panels.js?v=3b8c8f85:1423:3)
+    at forwardRef(PanelGroup)
+    at ResizablePanelGroup (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/src/components/ui/resizable.tsx:21:3)
+    at div
+    at Home (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/src/pages/Home.tsx:26:29)
+    at Route (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/wouter.js?v=3b8c8f85:323:16)
+    at Switch (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/wouter.js?v=3b8c8f85:379:17)
+    at App
+    at QueryClientProvider (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/@tanstack_react-query.js?v=3b8c8f85:2805:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+Cannot read properties of null (reading 'useContext')
+at useContext (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-3TFVT2CW.js?v=499f0c46:1062:29)
+at MotionComponent (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/framer-motion.js?v=2cfce959:6536:40)
+at renderWithHooks (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-WERSD76P.js?v=3b8c8f85:11548:26)
+at updateForwardRef (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-WERSD76P.js?v=3b8c8f85:14325:28)
+at beginWork (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-WERSD76P.js?v=3b8c8f85:15946:22)
+at beginWork$1 (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-WERSD76P.js?v=3b8c8f85:19753:22)
+at performUnitOfWork (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-WERSD76P.js?v=3b8c8f85:19198:20)
+at workLoopSync (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-WERSD76P.js?v=3b8c8f85:19137:13)
+at renderRootSync (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-WERSD76P.js?v=3b8c8f85:19116:15)
+at recoverFromConcurrentError (https://30a1d087-2ece-4f91-b55f-5170b593671b-00-tan46r2rdf91.sisko.replit.dev/@fs/home/runner/SuperAIFlow/node_modules/.vite/deps/chunk-WERSD76P.js?v=3b8c8f85:18736:28)
