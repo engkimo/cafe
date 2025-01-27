@@ -27,7 +27,7 @@ target_metadata = Base.metadata
 
 # データベースURLを環境変数から取得
 def get_url():
-    return os.getenv("DATABASE_URL", "postgresql://superaiflow:superaiflow@localhost:5432/superaiflow")
+    return os.getenv("DATABASE_URL", "postgresql://cafe:cafe@localhost:5432/cafe")
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.

@@ -134,8 +134,8 @@ export default function WorkflowPanel({ tasks, ws }: WorkflowPanelProps) {
   const handleExecuteTask = useCallback((taskId: string) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       toast({
-        title: "Error",
-        description: "WebSocket connection is not established",
+        title: "エラー",
+        description: "WebSocket接続が確立されていません",
         variant: "destructive",
       });
       return;
@@ -151,8 +151,8 @@ export default function WorkflowPanel({ tasks, ws }: WorkflowPanelProps) {
   const handleUpdateTask = useCallback((taskId: string, inputs: TaskInputs) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       toast({
-        title: "Error",
-        description: "WebSocket connection is not established",
+        title: "エラー",
+        description: "WebSocket接続が確立されていません",
         variant: "destructive",
       });
       return;
@@ -181,8 +181,8 @@ export default function WorkflowPanel({ tasks, ws }: WorkflowPanelProps) {
   const handleDeleteAllTasks = useCallback(() => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       toast({
-        title: "Error",
-        description: "WebSocket connection is not established",
+        title: "エラー",
+        description: "WebSocket接続が確立されていません",
         variant: "destructive",
       });
       return;
@@ -196,8 +196,8 @@ export default function WorkflowPanel({ tasks, ws }: WorkflowPanelProps) {
   const handleExecuteAll = useCallback(() => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       toast({
-        title: "Error",
-        description: "WebSocket connection is not established",
+        title: "エラー",
+        description: "WebSocket接続が確立されていません",
         variant: "destructive",
       });
       return;
@@ -206,8 +206,8 @@ export default function WorkflowPanel({ tasks, ws }: WorkflowPanelProps) {
     const pendingTasks = tasks.filter(task => task.status === 'pending');
     if (pendingTasks.length === 0) {
       toast({
-        title: "Notice",
-        description: "No executable tasks available",
+        title: "通知",
+        description: "実行可能なタスクがありません",
       });
       return;
     }
@@ -266,7 +266,7 @@ export default function WorkflowPanel({ tasks, ws }: WorkflowPanelProps) {
     <Card className="h-full rounded-none border-r flex flex-col">
       <div className="p-4 border-b">
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">Workflow</h2>
+          <h2 className="text-lg font-semibold">ワークフロー</h2>
           {renderExecuteButton()}
         </div>
       </div>
@@ -294,7 +294,7 @@ export default function WorkflowPanel({ tasks, ws }: WorkflowPanelProps) {
             className="w-full flex items-center justify-center gap-2 bg-beige hover:bg-beige/90 text-foreground"
           >
             <Trash2 className="h-4 w-4" />
-            Delete All Tasks
+            すべてのタスクを削除
           </Button>
         </div>
       )}

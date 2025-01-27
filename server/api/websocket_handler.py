@@ -1,66 +1,88 @@
 import json
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict, Any
+from datetime import datetime
 
 from ..core.workflow_manager import WorkflowManager
 
 class WebSocketHandler:
     def __init__(self, workflow_manager: WorkflowManager):
         self.workflow_manager = workflow_manager
+        self.active_connections: Dict[str, WebSocket] = {}
+        print("WebSocketハンドラーが初期化されました")
 
     async def handle_connection(self, websocket: WebSocket):
         """WebSocket接続を処理"""
-        await websocket.accept()
-        print("WebSocket接続が確立されました")
-
+        connection_id = str(id(websocket))
         try:
+            print(f"新しいWebSocket接続を受け入れようとしています... (ID: {connection_id})")
+            await websocket.accept()
+            self.active_connections[connection_id] = websocket
+            print(f"WebSocket接続が確立されました (ID: {connection_id})")
+            print(f"現在のアクティブな接続数: {len(self.active_connections)}")
+
             while True:
                 try:
                     data = await websocket.receive_text()
-                    print(f"受信したメッセージ: {data}")
+                    print(f"受信したメッセージ (ID: {connection_id}): {data}")
+                    
+                    # クライアントからのping-pongメッセージを処理
+                    if data == "ping":
+                        await websocket.send_json({
+                            "type": "pong",
+                            "timestamp": datetime.now().isoformat()
+                        })
+                        continue
+
                     message = json.loads(data)
-                    print(f"パースされたメッセージ: {json.dumps(message, ensure_ascii=False)}")  # デバッグログ追加
+                    print(f"パースされたメッセージ: {json.dumps(message, ensure_ascii=False)}")
 
                     response = await self._process_message(message)
-                    print(f"生成された応答: {json.dumps(response, ensure_ascii=False)}")  # デバッグログ追加
+                    print(f"生成された応答: {json.dumps(response, ensure_ascii=False) if isinstance(response, dict) else 'AsyncGenerator'}")
 
                     if isinstance(response, dict):
-                        print(f"送信する応答: {json.dumps(response, ensure_ascii=False)}")  # デバッグログ追加
                         await websocket.send_json(response)
                     else:
-                        # execute_all_tasksの場合は非同期ジェネレータ
+                        # 非同期ジェネレータを処理
                         async for task_response in response:
-                            print(f"送信するタスク応答: {json.dumps(task_response, ensure_ascii=False)}")  # デバッグログ追加
+                            print(f"タスク実行結果: {json.dumps(task_response, ensure_ascii=False)}")
                             await websocket.send_json(task_response)
 
+                except WebSocketDisconnect:
+                    print(f"クライアントが正常に切断されました (ID: {connection_id})")
+                    break
                 except json.JSONDecodeError as e:
-                    print(f"JSONデコードエラー: {e}")
+                    print(f"JSONデコードエラー (ID: {connection_id}): {e}")
                     await websocket.send_json({
                         "type": "error",
                         "message": "無効なJSONフォーマットです"
                     })
-                except ValueError as e:
-                    print(f"バリデーションエラー: {e}")
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": str(e)
-                    })
                 except Exception as e:
-                    print(f"メッセージ処理エラー: {e}")
-                    print(f"エラーの詳細: {type(e).__name__}")  # デバッグログ追加
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": f"メッセージの処理中にエラーが発生しました: {str(e)}"
-                    })
+                    print(f"メッセージ処理中の予期せぬエラー (ID: {connection_id}): {str(e)}")
+                    print(f"エラーの種類: {type(e).__name__}")
+                    import traceback
+                    print(f"エラーのトレースバック:\n{traceback.format_exc()}")
+                    try:
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": f"メッセージの処理中にエラーが発生しました: {str(e)}"
+                        })
+                    except:
+                        print(f"エラーメッセージの送信に失敗しました (ID: {connection_id})")
+                        break
 
-        except WebSocketDisconnect:
-            print("クライアントが切断されました")
         except Exception as e:
-            print(f"WebSocketエラー: {e}")
+            print(f"WebSocket接続の確立中にエラーが発生しました (ID: {connection_id}): {str(e)}")
+            import traceback
+            print(f"エラーのトレースバック:\n{traceback.format_exc()}")
+        finally:
+            print(f"WebSocket接続をクリーンアップしています (ID: {connection_id})")
+            self.active_connections.pop(connection_id, None)
             try:
                 await websocket.close()
             except:
                 pass
+            print(f"接続がクリーンアップされました。残りの接続数: {len(self.active_connections)}")
 
     async def _process_message(self, message: Dict[str, Any]):
         """メッセージの種類に応じた処理を実行"""
@@ -90,6 +112,7 @@ class WebSocketHandler:
             elif message_type == "execute_all_tasks":
                 if not message.get("taskIds"):
                     raise ValueError("タスクIDのリストが必要です")
+                # 非同期ジェネレータを返す
                 return self.workflow_manager.execute_all_tasks(message["taskIds"])
 
             elif message_type == "update_task":

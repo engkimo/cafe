@@ -1,5 +1,5 @@
 """
-SuperAIFlow Server
+cafe Server
 =================
 
 AIを活用したワークフロー自動化プラットフォームのサーバーサイド実装

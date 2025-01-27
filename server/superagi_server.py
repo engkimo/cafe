@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional, AsyncGenerator
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import json
@@ -58,23 +58,22 @@ class WorkflowManager:
             completion = await self.openai_client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": """You are a workflow analysis assistant.
-Please analyze user requests and suggest automatable workflow tasks.
-IMPORTANT: Always respond in English, regardless of the input language.
-Always respond in the following JSON format. No other format is accepted.
+                    {"role": "system", "content": """あなたはワークフロー分析アシスタントです。
+ユーザーのリクエストを分析し、自動化可能なワークフロータスクを提案してください。
+必ず以下のJSON形式で応答してください。他の形式は受け付けません。
 
-Example:
+例：
 {
-    "message": "Here are 3 automation tasks: email creation, sending, and result aggregation",
+    "message": "3つの自動化タスクを提案します：メール作成、送信、結果集計",
     "suggested_tasks": [
         {
             "type": "Email Creation",
             "name": "Create Sales Email",
-            "description": "Create email using template",
+            "description": "テンプレートを使用してメールを作成",
             "confidence": 0.9,
             "inputs": {
-                "template": "email template",
-                "data": "customer data"
+                "template": "メールテンプレート",
+                "data": "顧客データ"
             },
             "dependencies": []
         }
@@ -147,29 +146,29 @@ Example:
 
         try:
             tools_str = ", ".join(task["tools"])
-            system_prompt = """You are a task execution assistant.
-Execute the given task and always return JSON in the following format. No other format is accepted.
+            system_prompt = """あなたはタスク実行アシスタントです。
+与えられたタスクを実行し、必ず以下の形式でJSONを返してください。他の形式は受け付けません。
 
-Example:
+例：
 {
-    "action": "Execute email creation",
-    "result": "Created 10 emails using the template",
+    "action": "メール作成の実行",
+    "result": "テンプレートを使用して10件のメールを作成しました",
     "output_data": {
         "processed_items": 10,
         "success_rate": 1.0,
-        "details": "All emails were created successfully"
+        "details": "すべてのメールが正常に作成されました"
     }
 }"""
 
-            task_prompt = f"""Please execute the following task:
+            task_prompt = f"""以下のタスクを実行してください：
 
-Task Information:
-- Type: {task['type']}
-- Name: {task['name']}
-- Input Data: {json.dumps(task['inputs'], ensure_ascii=False)}
-- Available Tools: {tools_str}
+タスク情報：
+- タイプ: {task['type']}
+- 名前: {task['name']}
+- 入力データ: {json.dumps(task['inputs'], ensure_ascii=False)}
+- 利用可能なツール: {tools_str}
 
-Please return the result in JSON format."""
+必ずJSONフォーマットで結果を返してください。"""
 
             completion = await self.openai_client.chat.completions.create(
                 model="gpt-4",
@@ -291,87 +290,6 @@ Please return the result in JSON format."""
             }
 
 workflow_manager = WorkflowManager()
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    print("WebSocket接続が確立されました")
-
-    try:
-        while True:
-            try:
-                data = await websocket.receive_text()
-                print(f"受信したメッセージ: {data}")
-                message = json.loads(data)
-
-                if message.get("type") == "message":
-                    if not message.get("content"):
-                        raise ValueError("メッセージの内容が必要です")
-
-                    response = await workflow_manager.process_chat_message(message["content"])
-                    print(f"送信するレスポンス: {response}")
-                    await websocket.send_json(response)
-
-                elif message.get("type") == "create_task":
-                    if not message.get("task"):
-                        raise ValueError("タスクの設定が必要です")
-
-                    task = await workflow_manager.create_task(message["task"])
-                    response = {
-                        "type": "task_created",
-                        "task": task
-                    }
-                    print(f"作成したタスク: {response}")
-                    await websocket.send_json(response)
-
-                elif message.get("type") == "execute_task":
-                    if not message.get("taskId"):
-                        raise ValueError("タスクIDが必要です")
-
-                    response = await workflow_manager.execute_task(message["taskId"])
-                    print(f"タスク実行結果: {response}")
-                    await websocket.send_json(response)
-
-                elif message.get("type") == "execute_all_tasks":
-                    if not message.get("taskIds"):
-                        raise ValueError("タスクIDのリストが必要です")
-
-                    async for response in workflow_manager.execute_all_tasks(message["taskIds"]):
-                        await websocket.send_json(response)
-
-                else:
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": "不明なメッセージタイプです"
-                    })
-
-            except json.JSONDecodeError:
-                print("JSONデコードエラー")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "無効なJSONフォーマットです"
-                })
-            except ValueError as e:
-                print(f"バリデーションエラー: {e}")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": str(e)
-                })
-            except Exception as e:
-                print(f"メッセージ処理エラー: {e}")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": f"メッセージの処理中にエラーが発生しました: {str(e)}"
-                })
-
-    except WebSocketDisconnect:
-        print("クライアントが切断されました")
-    except Exception as e:
-        print(f"WebSocketエラー: {e}")
-        try:
-            await websocket.close()
-        except:
-            pass
 
 if __name__ == "__main__":
     import uvicorn

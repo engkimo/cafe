@@ -50,10 +50,10 @@ function TaskNode({ data }: TaskNodeProps) {
   };
 
   const statusLabels: Record<string, string> = {
-    pending: 'Pending',
-    running: 'Running',
-    completed: 'Completed',
-    failed: 'Failed'
+    pending: '待機中',
+    running: '実行中',
+    completed: '完了',
+    failed: '失敗'
   };
 
   const handleExecute = () => {
@@ -105,13 +105,13 @@ function TaskNode({ data }: TaskNodeProps) {
     return null;
   };
 
-  // Calculate default times for 30 minutes and 1 hour from current time
+  // 現在の日時から30分後と1時間後のデフォルト日時を計算
   const getDefaultTimes = () => {
     const now = new Date();
     const startTime = new Date(now.getTime() + 30 * 60000); // 30分後
     const endTime = new Date(now.getTime() + 60 * 60000);   // 1時間後
     
-    // Convert to YYYY-MM-DDThh:mm:ss format (set seconds to 00)
+    // YYYY-MM-DDThh:mm:ss形式に変換（秒を00に設定）
     const formatDateTime = (date: Date) => {
       date.setSeconds(0);
       return date.toISOString().slice(0, 19);
@@ -126,7 +126,7 @@ function TaskNode({ data }: TaskNodeProps) {
     return times;
   };
 
-  // Define default input fields based on task type
+  // タスクタイプに応じたデフォルトの入力フィールドを定義
   const defaultInputs = {
     'Create Google Calendar Event': {
       attendees: '',
@@ -142,7 +142,7 @@ function TaskNode({ data }: TaskNodeProps) {
 
   const [inputs, setInputs] = useState(() => {
     const defaults = defaultInputs[task.type as keyof typeof defaultInputs] || {};
-    // Use existing task input values if available
+    // タスクの既存の入力値がある場合はそれを使用
     return {
       ...defaults,
       ...Object.fromEntries(
@@ -154,39 +154,39 @@ function TaskNode({ data }: TaskNodeProps) {
   const handleInputChange = (key: string, value: string) => {
     let processedValue = value;
 
-    // Process datetime input (more flexibly)
+    // 日時入力の処理（より柔軟に）
     if (key.includes('time')) {
       if (value === '') {
-        // If value is empty, set default datetime
+        // 値が空の場合、デフォルトの日時を設定
         const { start_time, end_time } = getDefaultTimes();
         processedValue = key === 'start_time' ? start_time : end_time;
       } else {
         try {
-          // Convert input datetime to YYYY-MM-DDThh:mm:ss format
+          // 入力された日時をYYYY-MM-DDThh:mm:ss形式に変換
           const date = new Date(value);
           const timestamp = date.getTime();
           if (!Number.isNaN(timestamp)) {
-            // Set seconds to 00
+            // 秒を00に設定
             date.setSeconds(0);
             processedValue = date.toISOString().slice(0, 19);
           } else {
-            // If timestamp is invalid, keep current value
+            // タイムスタンプが無効な場合は現在値を維持
             processedValue = value;
           }
         } catch (e) {
           console.error('Invalid date format:', e);
-          // On error, keep current value
+          // エラー時は現在値を維持
           processedValue = value;
         }
       }
     }
 
-    // Process email addresses (validation removed)
+    // メールアドレスの処理（バリデーションを削除）
     if (key === 'attendees' || key === 'to') {
       processedValue = value.trim();
     }
 
-    // Update input value
+    // 入力値の更新
     setInputs(prev => ({
       ...prev,
       [key]: processedValue
@@ -197,10 +197,10 @@ function TaskNode({ data }: TaskNodeProps) {
     if (data.data.onUpdate) {
       console.log('Saving task inputs:', inputs);
       
-      // Send all values without excluding empty ones
+      // 空の値を除外せずにそのまま送信
       const processedInputs = { ...inputs } as TaskInputs;
       
-      // Set seconds to 00 for date fields
+      // 日付フィールドの秒を00に設定
       const timeFields = ['start_time', 'end_time'] as const;
       for (const field of timeFields) {
         const value = processedInputs[field];
@@ -225,19 +225,19 @@ function TaskNode({ data }: TaskNodeProps) {
     return (
       <div className="p-4 space-y-4 max-h-[400px]">
         <div className="space-y-2">
-          <h4 className="font-medium">Input Parameters</h4>
+          <h4 className="font-medium">入力パラメータ</h4>
           <div className="space-y-4">
             <div className="space-y-2">
               {Object.entries(inputs).map(([key, value]) => {
                 const inputId = `task-${task.id}-input-${key}`;
                 const inputType = key.includes('time') ? 'datetime-local' : 'text';
                 const placeholder = {
-                  attendees: 'Enter email addresses (comma separated)',
-                  subject: 'Enter subject',
-                  body: 'Enter message body',
-                  to: 'Enter recipient email',
-                  start_time: 'Start time',
-                  end_time: 'End time'
+                  attendees: 'メールアドレスをカンマ区切りで入力',
+                  subject: '件名を入力',
+                  body: '本文を入力',
+                  to: '送信先メールアドレス',
+                  start_time: '開始日時',
+                  end_time: '終了日時'
                 }[key] || '';
 
                 return (
@@ -267,13 +267,13 @@ function TaskNode({ data }: TaskNodeProps) {
               className="w-full"
             >
               <Save className="h-4 w-4 mr-2" />
-              Save
+              保存
             </Button>
           </div>
         </div>
         {task.outputs && Object.keys(task.outputs).length > 0 && (
           <div className="space-y-2">
-            <h4 className="font-medium">Output Log</h4>
+            <h4 className="font-medium">出力ログ</h4>
             <pre className="bg-muted p-2 rounded-md text-xs overflow-x-auto">
               {JSON.stringify(task.outputs, null, 2)}
             </pre>
@@ -303,9 +303,9 @@ function TaskNode({ data }: TaskNodeProps) {
               </CardHeader>
               <CardContent>
                 <div className="text-sm text-muted-foreground">
-                  <div>Type: {task.type}</div>
+                  <div>タイプ: {task.type}</div>
                   {task.dependencies.length > 0 && (
-                    <div>Dependencies: {task.dependencies.join(', ')}</div>
+                    <div>依存関係: {task.dependencies.join(', ')}</div>
                   )}
                 </div>
                 {task.status === 'running' && (

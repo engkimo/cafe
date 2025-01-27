@@ -1,2 +1,2 @@
 # すべてのメールをGmailを通じて送信
-@superaiflow.local smtp:[smtp.gmail.com]:587
+@cafe.local smtp:[smtp.gmail.com]:587

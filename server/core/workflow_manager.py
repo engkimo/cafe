@@ -13,48 +13,40 @@ from ..models import Task, Base
 
 class WorkflowManager:
     def __init__(self):
-        self._initialize_clients()
+        """初期化処理を一度だけ実行"""
+        self._initialize_openai()
         self._initialize_db()
         self._initialize_components()
+        print("ワークフローマネージャーの初期化が完了しました")
 
-    def _initialize_clients(self):
-        """APIクライアントの初期化"""
-        # OpenAI APIクライアントの初期化
+    def _initialize_openai(self):
+        """OpenAI APIクライアントの初期化"""
         openai_api_key = os.getenv('OPENAI_API_KEY')
         if not openai_api_key:
             raise ValueError("OPENAI_API_KEY環境変数が設定されていません")
 
-        try:
-            self.openai_client = AsyncOpenAI(
-                api_key=openai_api_key
-            )
-            print("OpenAI APIクライアントの初期化が完了しました")
-        except Exception as e:
-            print(f"OpenAI APIクライアントの初期化エラー: {e}")
-            raise
+        print(f"WorkflowManager: OpenAI APIキーを使用します: {openai_api_key[:8]}...")
+        self.openai_client = AsyncOpenAI(api_key=openai_api_key)
+        print("OpenAI APIクライアントの初期化が完了しました")
 
     def _initialize_db(self):
         """データベース接続の初期化"""
-        try:
-            database_url = os.getenv('DATABASE_URL')
-            if not database_url:
-                raise ValueError("DATABASE_URL環境変数が設定されていません")
+        database_url = os.getenv('DATABASE_URL')
+        if not database_url:
+            raise ValueError("DATABASE_URL環境変数が設定されていません")
 
-            # PostgreSQLのURLをasync用に変換
-            async_url = database_url.replace('postgresql://', 'postgresql+asyncpg://')
-            
-            self.engine = create_async_engine(async_url, echo=True)
-            self.async_session = sessionmaker(
-                self.engine, class_=AsyncSession, expire_on_commit=False
-            )
-            print("データベース接続の初期化が完了しました")
-        except Exception as e:
-            print(f"データベース接続の初期化エラー: {e}")
-            raise
+        # PostgreSQLのURLをasync用に変換
+        async_url = database_url.replace('postgresql://', 'postgresql+asyncpg://')
+        
+        self.engine = create_async_engine(async_url, echo=True)
+        self.async_session = sessionmaker(
+            self.engine, class_=AsyncSession, expire_on_commit=False
+        )
 
     def _initialize_components(self):
         """コンポーネントの初期化"""
         self.google_auth = GoogleAuthManager()
+        print("Google Calendar APIクライアントの初期化が完了しました")
 
     async def process_chat_message(self, message: str) -> Dict[str, Any]:
         """チャットメッセージを処理しAIのレスポンスを返す"""
@@ -202,21 +194,30 @@ class WorkflowManager:
                         dependencies_satisfied = True
                         for dep_name in task.dependencies:
                             try:
-                                # 依存タスクを取得（IDで検索）
-                                dep_tasks = await task_repo.get_tasks_by_ids([int(task_id) for task_id in remaining_tasks])
-                                dep_task = next((t for t in dep_tasks if t.name == dep_name), None)
+                                print(f"依存タスク '{dep_name}' のチェックを開始")
+                                # セッションをリフレッシュして最新の状態を取得
+                                await session.refresh(task)
+                                
+                                # 依存タスクを名前で検索
+                                dep_task = await task_repo.get_task_by_name(dep_name)
                                 
                                 if not dep_task:
                                     print(f"依存タスク '{dep_name}' が見つかりません")
                                     dependencies_satisfied = False
                                     break
                                 
+                                # セッションをリフレッシュして最新の状態を取得
+                                await session.refresh(dep_task)
+                                
                                 print(f"依存タスク '{dep_name}' の状態: {dep_task.status}")
+                                print(f"依存タスク '{dep_name}' の詳細: ID={dep_task.id}, 入力={dep_task.inputs}, 出力={dep_task.outputs}")
                                 
                                 if dep_task.status != "completed":
                                     print(f"依存タスク '{dep_name}' は完了していません（現在のステータス: {dep_task.status}）")
                                     dependencies_satisfied = False
                                     break
+                                else:
+                                    print(f"依存タスク '{dep_name}' は正常に完了しています")
                             except Exception as e:
                                 print(f"依存タスクのチェックエラー: {str(e)}")
                                 dependencies_satisfied = False

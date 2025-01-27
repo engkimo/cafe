@@ -7,10 +7,21 @@ from pathlib import Path
 from datetime import datetime
 
 class DockerManager:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DockerManager, cls).__new__(cls)
+            cls._instance.client = None
+            cls._instance.build_path = None
+        return cls._instance
+
     def __init__(self):
-        self.client = docker.from_env()
-        self.build_path = Path(__file__).parent / "docker_builds"
-        self.build_path.mkdir(exist_ok=True)
+        if self.client is None:
+            self.client = docker.from_env()
+            self.build_path = Path(__file__).parent / "docker_builds"
+            self.build_path.mkdir(exist_ok=True)
+            print("DockerManagerが初期化されました")
 
     def _create_calendar_dockerfile(self, config: Dict) -> str:
         """カレンダー用のDockerfileを生成"""
@@ -118,11 +129,11 @@ RUN apt-get update && \\
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-ENV MAIL_HOST={config.get('host', 'mail.superaiflow.local')}
+ENV MAIL_HOST={config.get('host', 'mail.cafe.local')}
 ENV MAIL_PORT={config.get('port', '587')}
-ENV MAIL_USERNAME={config.get('username', 'system@superaiflow.local')}
+ENV MAIL_USERNAME={config.get('username', 'system@cafe.local')}
 ENV MAIL_PASSWORD={config.get('password', '')}
-ENV MAIL_FROM={config.get('from', 'system@superaiflow.local')}
+ENV MAIL_FROM={config.get('from', 'system@cafe.local')}
 ENV MAIL_ENCRYPTION={config.get('encryption', 'tls')}
 
 COPY mail_service.py .
@@ -372,4 +383,5 @@ google-api-python-client==2.86.0
                 "message": f"イメージの削除中にエラーが発生しました: {str(e)}"
             }
 
+# シングルトンインスタンスを作成
 docker_manager = DockerManager()

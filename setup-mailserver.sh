@@ -7,7 +7,7 @@ mkdir -p config/mailserver/{postfix-accounts.cf,postfix-relaymap.cf}
 # パスワードはハッシュ化して保存（docker-mailserver-passwordコマンドを使用）
 docker run --rm \
   docker.io/mailserver/docker-mailserver:latest \
-  setup email add system@superaiflow.local password123
+  setup email add system@cafe.local password123
 
 # Gmailリレー設定の確認
 if [ -z "$GMAIL_USER" ] || [ -z "$GMAIL_APP_PASSWORD" ]; then

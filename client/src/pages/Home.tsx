@@ -14,29 +14,39 @@ export default function Home() {
     if (!ws) return;
 
     const handleMessage = (event: MessageEvent) => {
-      const data = JSON.parse(event.data);
-      console.log('Received WebSocket message:', data);
+      try {
+        const data = JSON.parse(event.data);
+        console.log('Received WebSocket message:', data);
 
-      if (data.type === 'task_executed') {
-        updateTask(data.task);
-      } else if (data.type === 'task_created') {
-        handleNewTask(data.task);
-      } else if (data.type === 'tasks_deleted') {
-        // タスクが削除された時の処理
-        setTasks([]);
-        toast({
-          title: "タスク削除",
-          description: "すべてのタスクが削除されました",
-        });
-      }
+        // ping-pongメッセージの処理
+        if (data.type === 'pong') {
+          console.log("Received pong response at:", data.timestamp);
+          return;
+        }
 
-      // エラーメッセージの処理
-      if (data.type === 'error') {
-        toast({
-          title: "エラー",
-          description: data.message,
-          variant: "destructive",
-        });
+        if (data.type === 'task_executed') {
+          updateTask(data.task);
+        } else if (data.type === 'task_created') {
+          handleNewTask(data.task);
+        } else if (data.type === 'tasks_deleted') {
+          // タスクが削除された時の処理
+          setTasks([]);
+          toast({
+            title: "タスク削除",
+            description: "すべてのタスクが削除されました",
+          });
+        }
+
+        // エラーメッセージの処理
+        if (data.type === 'error') {
+          toast({
+            title: "エラー",
+            description: data.message,
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
       }
     };
 

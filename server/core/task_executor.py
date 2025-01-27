@@ -44,47 +44,33 @@ class TaskExecutor:
 
     async def execute_task(self, task: Task) -> Dict[str, Any]:
         """タスクを実行"""
-        tools = self.available_tools.get(task.type, [])
         try:
-            # タスクのステータスを更新
+            print(f"タスク実行開始: ID={task.id}, 名前={task.name}, タイプ={task.type}")
+            print(f"タスクの依存関係: {task.dependencies}")
+            print(f"タスクの入力: {task.inputs}")
+            
+            # タスクのステータスを実行中に更新
             task.status = "running"
             await self.task_repository.update_task(task)
-
-            try:
-                # タスクの実行
-                if task.type == "Create Google Calendar Event":
-                    await self._execute_calendar_event_task(task)
-                elif task.type == "Send Gmail":
-                    await self._execute_gmail_task(task)
-                else:
-                    await self._execute_generic_task(task, tools)
-
-                # 実行結果を保存
-                task.status = "completed"
-                await self.task_repository.update_task(task)
-            except Exception as e:
-                task.status = "failed"
-                task.outputs = {"error": str(e)}
-                await self.task_repository.update_task(task)
-                raise
-
-            return {
-                "type": "task_executed",
-                "task": self._create_task_response(task, tools)
-            }
-
+            
+            if task.type == "Create Google Calendar Event":
+                result = await self._execute_calendar_event_task(task)
+            elif task.type == "Send Gmail":
+                result = await self._execute_gmail_task(task)
+            else:
+                raise ValueError(f"未対応のタスクタイプ: {task.type}")
+            
+            print(f"タスク実行完了: ID={task.id}")
+            print(f"実行結果: {result}")
+            return result
+            
         except Exception as e:
-            # エラー時はステータスを更新
+            print(f"タスク実行エラー: ID={task.id}, エラー={str(e)}")
             task.status = "failed"
             await self.task_repository.update_task(task)
+            raise
 
-            return {
-                "type": "task_executed",
-                "task": self._create_task_response(task, tools),
-                "error": str(e)
-            }
-
-    async def _execute_calendar_event_task(self, task: Task) -> None:
+    async def _execute_calendar_event_task(self, task: Task) -> Dict[str, Any]:
         """カレンダーイベントタスクを実行"""
         try:
             # デフォルト値の設定
@@ -142,11 +128,34 @@ class TaskExecutor:
                     "subject": task.inputs["subject"]
                 }
             }
+            
+            # タスクのステータスを更新
+            task.status = "completed"
+            await self.task_repository.update_task(task)
+            
+            # レスポンスを返す
+            return {
+                "type": "task_executed",
+                "task": {
+                    "id": task.id,
+                    "name": task.name,
+                    "type": task.type,
+                    "inputs": task.inputs,
+                    "outputs": task.outputs,
+                    "status": task.status,
+                    "dependencies": task.dependencies,
+                    "tools": []
+                }
+            }
+            
         except Exception as e:
             print(f"カレンダーイベント作成エラー: {str(e)}")
+            task.status = "failed"
+            task.outputs = {"error": str(e)}
+            await self.task_repository.update_task(task)
             raise
 
-    async def _execute_gmail_task(self, task: Task) -> None:
+    async def _execute_gmail_task(self, task: Task) -> Dict[str, Any]:
         """Gmailタスクを実行"""
         try:
             # 入力値の設定
@@ -204,7 +213,7 @@ class TaskExecutor:
 
             # メールサーバーコンテナでコマンドを実行
             try:
-                container = docker_manager.client.containers.get('superaiflow-mailserver')
+                container = docker_manager.client.containers.get('cafe-mailserver')
                 exec_result = container.exec_run(
                     [
                         "/usr/local/bin/send_mail.sh",
@@ -224,7 +233,7 @@ class TaskExecutor:
                     user="root"
                 )
 
-                output = exec_result.output.decode()
+                output = exec_result.output.decode() if exec_result.output else ""
                 print(f"メール送信結果: {output}")
 
                 if exec_result.exit_code != 0:
@@ -234,15 +243,40 @@ class TaskExecutor:
                     "action": "メール送信",
                     "result": "招待メールを送信しました",
                     "message_id": "sent",
-                    "output": output
+                    "output": output,
+                    "exit_code": exec_result.exit_code
+                }
+                
+                # タスクのステータスを更新
+                task.status = "completed"
+                await self.task_repository.update_task(task)
+                
+                # レスポンスを返す
+                return {
+                    "type": "task_executed",
+                    "task": {
+                        "id": task.id,
+                        "name": task.name,
+                        "type": task.type,
+                        "inputs": task.inputs,
+                        "outputs": task.outputs,
+                        "status": task.status,
+                        "dependencies": task.dependencies,
+                        "tools": []
+                    }
                 }
 
             except Exception as e:
                 print(f"メール送信エラー: {str(e)}")
+                task.status = "failed"
+                task.outputs = {"error": str(e)}
+                await self.task_repository.update_task(task)
                 raise
 
         except Exception as e:
             task.outputs = {"success": False, "error": str(e)}
+            task.status = "failed"
+            await self.task_repository.update_task(task)
             raise
 
     async def _execute_generic_task(self, task: Task, tools: List[str]) -> None:
