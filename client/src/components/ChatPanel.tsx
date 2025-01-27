@@ -89,7 +89,7 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
+  }, [scrollToBottom]);
 
   const handleSend = async () => {
     if (!input.trim() || !ws || ws.readyState !== WebSocket.OPEN) {
