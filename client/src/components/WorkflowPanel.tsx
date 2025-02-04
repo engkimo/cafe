@@ -2,7 +2,7 @@ import type { Task } from "@/pages/Home";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { PlayCircle, PauseCircle, RotateCcw, Trash2 } from "lucide-react";
+import { PlayCircle, PauseCircle, RotateCcw, Trash2, Brain } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import type { Node, Edge, NodeTypes } from '@xyflow/react';
 import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, Position, MarkerType } from '@xyflow/react';
@@ -13,6 +13,7 @@ import TaskNode, { type TaskNodeData } from './TaskNode';
 interface WorkflowPanelProps {
   tasks: Task[];
   ws: WebSocket | null;
+  autoSaveMode: boolean;
 }
 
 type FlowNode = Node<{ data: TaskNodeData }>;
@@ -125,7 +126,7 @@ const getLayoutedElements = (
   return { nodes, edges };
 };
 
-export default function WorkflowPanel({ tasks, ws }: WorkflowPanelProps) {
+export default function WorkflowPanel({ tasks, ws, autoSaveMode }: WorkflowPanelProps) {
   const { toast } = useToast();
   const [isExecuting, setIsExecuting] = useState(false);
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
@@ -230,6 +231,12 @@ export default function WorkflowPanel({ tasks, ws }: WorkflowPanelProps) {
     }
   }, [ws, tasks]);
 
+  const getCompletionPercentage = () => {
+    if (tasks.length === 0) return 0;
+    const completedTasks = tasks.filter(task => task.status === 'completed').length;
+    return Math.round((completedTasks / tasks.length) * 100);
+  };
+
   const renderExecuteButton = () => {
     if (tasks.length === 0) return null;
 
@@ -266,9 +273,30 @@ export default function WorkflowPanel({ tasks, ws }: WorkflowPanelProps) {
     <Card className="h-full rounded-none border-r flex flex-col">
       <div className="p-4 border-b">
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">ワークフロー</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">ワークフロー</h2>
+            {autoSaveMode && (
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Brain className="h-4 w-4" />
+                <span>自動生成モード</span>
+              </div>
+            )}
+          </div>
           {renderExecuteButton()}
         </div>
+        {tasks.length > 0 && (
+          <div className="mt-2">
+            <div className="text-sm text-muted-foreground">
+              進捗状況: {getCompletionPercentage()}%
+            </div>
+            <div className="w-full h-2 bg-gray-200 rounded-full mt-1">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${getCompletionPercentage()}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
       <div className="flex-1">
         <ReactFlow

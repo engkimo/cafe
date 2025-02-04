@@ -5,7 +5,7 @@ import type { Task } from "@/pages/Home";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, RotateCcw, Save } from "lucide-react";
+import { Play, Pause, RotateCcw, Save, Brain, AlertCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   Tooltip,
@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface TaskInputs {
   attendees?: string;
@@ -30,6 +31,7 @@ export interface TaskNodeData extends Record<string, unknown> {
   onExecute?: (taskId: string) => void;
   onUpdate?: (taskId: string, inputs: TaskInputs) => void;
   isExecuting?: boolean;
+  autoSaveMode?: boolean;
   [key: string]: unknown;
 }
 
@@ -40,7 +42,8 @@ interface TaskNodeProps extends NodeProps {
 }
 
 function TaskNode({ data }: TaskNodeProps) {
-  const { task, onExecute, isExecuting } = data.data;
+  const { task, onExecute, isExecuting, autoSaveMode } = data.data;
+  const [showError, setShowError] = useState(false);
 
   const statusColors: Record<string, string> = {
     pending: 'bg-yellow-500',
@@ -105,13 +108,11 @@ function TaskNode({ data }: TaskNodeProps) {
     return null;
   };
 
-  // 現在の日時から30分後と1時間後のデフォルト日時を計算
   const getDefaultTimes = () => {
     const now = new Date();
-    const startTime = new Date(now.getTime() + 30 * 60000); // 30分後
-    const endTime = new Date(now.getTime() + 60 * 60000);   // 1時間後
+    const startTime = new Date(now.getTime() + 30 * 60000);
+    const endTime = new Date(now.getTime() + 60 * 60000);
     
-    // YYYY-MM-DDThh:mm:ss形式に変換（秒を00に設定）
     const formatDateTime = (date: Date) => {
       date.setSeconds(0);
       return date.toISOString().slice(0, 19);
@@ -122,11 +123,9 @@ function TaskNode({ data }: TaskNodeProps) {
       end_time: formatDateTime(endTime)
     };
     
-    console.log('Generated default times:', times);
     return times;
   };
 
-  // タスクタイプに応じたデフォルトの入力フィールドを定義
   const defaultInputs = {
     'Create Google Calendar Event': {
       attendees: '',
@@ -142,7 +141,6 @@ function TaskNode({ data }: TaskNodeProps) {
 
   const [inputs, setInputs] = useState(() => {
     const defaults = defaultInputs[task.type as keyof typeof defaultInputs] || {};
-    // タスクの既存の入力値がある場合はそれを使用
     return {
       ...defaults,
       ...Object.fromEntries(
@@ -154,53 +152,52 @@ function TaskNode({ data }: TaskNodeProps) {
   const handleInputChange = (key: string, value: string) => {
     let processedValue = value;
 
-    // 日時入力の処理（より柔軟に）
     if (key.includes('time')) {
       if (value === '') {
-        // 値が空の場合、デフォルトの日時を設定
         const { start_time, end_time } = getDefaultTimes();
         processedValue = key === 'start_time' ? start_time : end_time;
       } else {
         try {
-          // 入力された日時をYYYY-MM-DDThh:mm:ss形式に変換
           const date = new Date(value);
           const timestamp = date.getTime();
           if (!Number.isNaN(timestamp)) {
-            // 秒を00に設定
             date.setSeconds(0);
             processedValue = date.toISOString().slice(0, 19);
           } else {
-            // タイムスタンプが無効な場合は現在値を維持
             processedValue = value;
           }
         } catch (e) {
           console.error('Invalid date format:', e);
-          // エラー時は現在値を維持
           processedValue = value;
         }
       }
     }
 
-    // メールアドレスの処理（バリデーションを削除）
     if (key === 'attendees' || key === 'to') {
       processedValue = value.trim();
     }
 
-    // 入力値の更新
     setInputs(prev => ({
       ...prev,
       [key]: processedValue
     }));
+
+    // 自動保存モードの場合、入力時に自動保存
+    if (autoSaveMode && data.data.onUpdate) {
+      const updatedInputs = {
+        ...inputs,
+        [key]: processedValue
+      };
+      data.data.onUpdate(task.id, updatedInputs);
+    }
   };
 
   const handleSave = () => {
     if (data.data.onUpdate) {
       console.log('Saving task inputs:', inputs);
       
-      // 空の値を除外せずにそのまま送信
       const processedInputs = { ...inputs } as TaskInputs;
       
-      // 日付フィールドの秒を00に設定
       const timeFields = ['start_time', 'end_time'] as const;
       for (const field of timeFields) {
         const value = processedInputs[field];
@@ -225,7 +222,15 @@ function TaskNode({ data }: TaskNodeProps) {
     return (
       <div className="p-4 space-y-4 max-h-[400px]">
         <div className="space-y-2">
-          <h4 className="font-medium">入力パラメータ</h4>
+          <div className="flex justify-between items-center">
+            <h4 className="font-medium">入力パラメータ</h4>
+            {autoSaveMode && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Brain className="h-3 w-3" />
+                <span>自動保存</span>
+              </div>
+            )}
+          </div>
           <div className="space-y-4">
             <div className="space-y-2">
               {Object.entries(inputs).map(([key, value]) => {
@@ -260,20 +265,30 @@ function TaskNode({ data }: TaskNodeProps) {
                 );
               })}
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSave}
-              className="w-full"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              保存
-            </Button>
+            {!autoSaveMode && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSave}
+                className="w-full"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                保存
+              </Button>
+            )}
           </div>
         </div>
         {task.outputs && Object.keys(task.outputs).length > 0 && (
           <div className="space-y-2">
             <h4 className="font-medium">出力ログ</h4>
+            {task.status === 'failed' && task.outputs.error && (
+              <Alert variant="destructive" className="mb-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {task.outputs.error}
+                </AlertDescription>
+              </Alert>
+            )}
             <pre className="bg-muted p-2 rounded-md text-xs overflow-x-auto">
               {JSON.stringify(task.outputs, null, 2)}
             </pre>
@@ -289,10 +304,13 @@ function TaskNode({ data }: TaskNodeProps) {
         <TooltipTrigger asChild>
           <div>
             <Handle type="target" position={Position.Top} />
-            <Card className="relative w-[280px]">
+            <Card className={`relative w-[280px] ${task.status === 'failed' ? 'border-red-500' : ''}`}>
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-center">
-                  <h3 className="font-medium">{task.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium">{task.name}</h3>
+                    {autoSaveMode && <Brain className="h-4 w-4 text-muted-foreground" />}
+                  </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className={statusColors[task.status]}>
                       {statusLabels[task.status]}
@@ -314,6 +332,12 @@ function TaskNode({ data }: TaskNodeProps) {
                       value={100}
                       className="progress-indeterminate"
                     />
+                  </div>
+                )}
+                {task.status === 'failed' && (
+                  <div className="mt-2 flex items-center gap-2 text-red-500 text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>エラーが発生しました</span>
                   </div>
                 )}
               </CardContent>

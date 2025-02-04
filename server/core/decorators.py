@@ -1,90 +1,113 @@
+from typing import Dict, Any, Callable, Type, TypeVar, Optional
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Type
 import inspect
+import semantic_kernel as sk
+from semantic_kernel.kernel import Kernel
 
-class TaskModule:
-    """タスクモジュールの基本クラス"""
-    def __init__(self, name: str, description: str):
-        self.name = name
-        self.description = description
-        self.functions: Dict[str, Dict[str, Any]] = {}
+T = TypeVar('T')
+
+class ModuleBase:
+    """基本モジュールクラス"""
+    name: str = ""
 
 def task_function(
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    input_schema: Optional[Dict[str, Any]] = None,
+    name: str,
+    description: str,
+    input_schema: Dict[str, Any],
     output_schema: Optional[Dict[str, Any]] = None,
-    required_tools: Optional[List[str]] = None
-):
-    """タスク関数を定義するデコレーター"""
-    def decorator(func: Callable):
-        func_name = name or func.__name__
-        func_description = description or func.__doc__ or ""
-        
-        # 関数のパラメータ情報を取得
-        sig = inspect.signature(func)
-        params = sig.parameters
-        
-        # 入力スキーマが指定されていない場合は関数のパラメータから生成
-        if input_schema is None:
-            generated_schema = {}
-            for param_name, param in params.items():
-                if param_name == 'self':
-                    continue
-                param_type = param.annotation if param.annotation != inspect.Parameter.empty else Any
-                generated_schema[param_name] = {
-                    'type': str(param_type.__name__),
-                    'description': '',
-                    'required': param.default == inspect.Parameter.empty
-                }
-            func.input_schema = generated_schema
-        else:
-            func.input_schema = input_schema
-            
-        func.output_schema = output_schema or {'type': 'object'}
-        func.required_tools = required_tools or []
-        func.task_name = func_name
-        func.task_description = func_description
-        
+    required_tools: Optional[list[str]] = None
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """タスク関数を定義するデコレータ"""
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # 入力値のバリデーション
-            if len(args) > 1:  # selfを除く
-                raise ValueError("位置引数は使用できません。キーワード引数を使用してください。")
-            
+        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+            # 引数の検証
+            if len(args) == 1 and isinstance(args[0], dict):
+                context = args[0]
+            else:
+                context = {}
+                for key, value in kwargs.items():
+                    context[key] = str(value)
+
             # 必須パラメータのチェック
-            for param_name, schema in func.input_schema.items():
-                if schema.get('required', False) and param_name not in kwargs:
-                    raise ValueError(f"必須パラメータ '{param_name}' が指定されていません。")
-            
+            for param_name, param_info in input_schema.items():
+                if param_info.get("required", False) and param_name not in context:
+                    raise ValueError(f"必須パラメータが不足しています: {param_name}")
+
             # 関数を実行
-            result = await func(*args, **kwargs)
+            result = await func(self, context)
             return result
-            
+
+        # メタデータを設定
+        wrapper.is_task_function = True
+        wrapper.task_name = name
+        wrapper.task_description = description
+        wrapper.input_schema = input_schema
+        wrapper.output_schema = output_schema or {}
+        wrapper.required_tools = required_tools or []
+        
         return wrapper
     return decorator
 
-class ModuleBase:
-    """タスクモジュールのベースクラス"""
-    def __init__(self):
-        self._register_functions()
-    
-    def _register_functions(self):
-        """クラス内のタスク関数を登録"""
-        for name, method in inspect.getmembers(self):
-            if hasattr(method, 'task_name'):
-                if not hasattr(self, 'functions'):
-                    self.functions = {}
-                self.functions[method.task_name] = {
-                    'name': method.task_name,
-                    'description': method.task_description,
-                    'input_schema': method.input_schema,
-                    'output_schema': method.output_schema,
-                    'required_tools': method.required_tools,
-                    'handler': method
-                }
+def plan_step(
+    name: str,
+    description: str,
+    input_schema: Dict[str, Any],
+    output_schema: Dict[str, Any],
+    dependencies: Optional[list[str]] = None
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """プランのステップを定義するデコレータ"""
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(func)
+        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+            # 引数の検証
+            if len(args) == 1 and isinstance(args[0], dict):
+                context = args[0]
+            else:
+                context = {}
+                for key, value in kwargs.items():
+                    context[key] = str(value)
 
-def get_module_functions(module: Type[ModuleBase]) -> Dict[str, Dict[str, Any]]:
-    """モジュールから利用可能な関数の情報を取得"""
-    instance = module()
-    return instance.functions
+            # 必須パラメータのチェック
+            for param_name, param_info in input_schema.items():
+                if param_info.get("required", False) and param_name not in context:
+                    raise ValueError(f"必須パラメータが不足しています: {param_name}")
+
+            # 関数を実行
+            result = await func(self, context)
+            return result
+
+        # メタデータを設定
+        wrapper.is_plan_step = True
+        wrapper.step_name = name
+        wrapper.step_description = description
+        wrapper.input_schema = input_schema
+        wrapper.output_schema = output_schema
+        wrapper.dependencies = dependencies or []
+        
+        return wrapper
+    return decorator
+
+def get_module_functions(module_class: Type[T]) -> Dict[str, Dict[str, Any]]:
+    """モジュールから利用可能な関数を取得"""
+    functions = {}
+    
+    for name, method in inspect.getmembers(module_class):
+        if hasattr(method, 'is_task_function'):
+            functions[method.task_name] = {
+                'name': method.task_name,
+                'description': method.task_description,
+                'input_schema': method.input_schema,
+                'output_schema': method.output_schema,
+                'required_tools': method.required_tools
+            }
+        elif hasattr(method, 'is_plan_step'):
+            functions[method.step_name] = {
+                'name': method.step_name,
+                'description': method.step_description,
+                'input_schema': method.input_schema,
+                'output_schema': method.output_schema,
+                'dependencies': method.dependencies
+            }
+            
+    return functions

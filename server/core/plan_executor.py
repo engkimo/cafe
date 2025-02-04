@@ -2,6 +2,8 @@ from typing import Dict, List, Any, Optional, Set
 import asyncio
 from datetime import datetime
 import json
+import semantic_kernel as sk
+from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion, OpenAIChatCompletion
 
 from .task_executor import TaskExecutor
 from .decorators import ModuleBase, get_module_functions
@@ -22,6 +24,16 @@ class PlanExecutor:
         self.auto_save_mode = False
         self._available_functions = self._load_module_functions()
         
+        # Semantic Kernelの初期化
+        self.kernel = sk.Kernel()
+        api_key = self.task_executor.openai_client.api_key
+        
+        # OpenAIサービスの設定
+        self.chat_service = OpenAIChatCompletion(
+            ai_model_id="gpt-4",
+            api_key=api_key
+        )
+        
     def _load_module_functions(self) -> Dict[str, Dict[str, Any]]:
         """全モジュールから利用可能な関数を読み込む"""
         functions = {}
@@ -37,27 +49,32 @@ class PlanExecutor:
     async def create_plan(self, task_description: str) -> List[Task]:
         """タスク説明からプランを生成"""
         try:
-            # OpenAI APIを使用してタスクを分析
+            # OpenAI APIを直接使用してプランを生成
             messages = [
-                {"role": "system", "content": """
-あなたはタスクプランナーです。与えられたタスクを実行可能なサブタスクに分解し、
-それぞれの依存関係を特定してください。
-
-利用可能な関数:
-""" + json.dumps(self._available_functions, ensure_ascii=False, indent=2)},
-                {"role": "user", "content": f"以下のタスクを実行可能なサブタスクに分解してください:\n{task_description}"}
+                {
+                    "role": "system",
+                    "content": f"""
+                    与えられたタスクを実行可能なサブタスクに分解し、それぞれの依存関係を特定してください。
+                    
+                    利用可能な関数:
+                    {json.dumps(self._available_functions, ensure_ascii=False, indent=2)}
+                    """
+                },
+                {
+                    "role": "user",
+                    "content": task_description
+                }
             ]
             
-            completion = await self.task_executor.openai_client.chat.completions.create(
-                model="gpt-4",
+            response = await self.chat_service.complete_chat(
                 messages=messages,
                 temperature=0.7,
+                max_tokens=2000
             )
             
-            # 応答からタスクリストを生成
-            plan = json.loads(completion.choices[0].message.content)
-            tasks = []
+            plan = json.loads(response.choices[0].message.content)
             
+            tasks = []
             for task_info in plan["tasks"]:
                 task = Task(
                     id=len(tasks) + 1,
@@ -125,7 +142,7 @@ class PlanExecutor:
                     # 実行結果をDBに保存
                     await self.task_repository.update_task(task)
                     
-                # MCPサーバーに進捗を通知(実装が必要)
+                # MCPサーバーに進捗を通知
                 await self._notify_mcp_progress(task)
                 
             except Exception as e:
@@ -140,6 +157,15 @@ class PlanExecutor:
         return results
     
     async def _notify_mcp_progress(self, task: Task):
-        """MCPサーバーに進捗を通知(プレースホルダー)"""
-        # TODO: MCP実装後に実装
-        pass
+        """MCPサーバーに進捗を通知"""
+        if not hasattr(self, 'workflow_server'):
+            return
+            
+        try:
+            await self.workflow_server.notify_task_progress({
+                "task_id": task.id,
+                "status": task.status,
+                "outputs": task.outputs
+            })
+        except Exception as e:
+            print(f"MCP通知エラー: {str(e)}")

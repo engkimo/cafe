@@ -1,4 +1,5 @@
 from typing import Dict, Any, List
+import semantic_kernel as sk
 from ..decorators import ModuleBase, task_function
 
 class BasicTaskModule(ModuleBase):
@@ -11,21 +12,19 @@ class BasicTaskModule(ModuleBase):
             "name": {"type": "string", "description": "ワークフロー名", "required": True},
             "description": {"type": "string", "description": "ワークフローの説明"},
             "tasks": {"type": "array", "description": "タスクのリスト", "required": True}
-        },
-        output_schema={
-            "type": "object",
-            "properties": {
-                "workflow_id": {"type": "string"},
-                "created_tasks": {"type": "array"}
-            }
         }
     )
-    async def create_workflow(self, name: str, description: str = "", tasks: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def create_workflow(self, context: Dict[str, Any]) -> str:
         """新しいワークフローを作成"""
-        return {
+        name = context["name"]
+        description = context.get("description", "")
+        tasks = context.get("tasks", [])
+        
+        result = {
             "workflow_id": "generated_id",
-            "created_tasks": tasks or []
+            "created_tasks": tasks
         }
+        return str(result)
 
     @task_function(
         name="process_data",
@@ -34,31 +33,23 @@ class BasicTaskModule(ModuleBase):
             "data": {"type": "object", "description": "処理するデータ", "required": True},
             "format": {"type": "string", "description": "出力フォーマット"},
             "filters": {"type": "array", "description": "適用するフィルター"}
-        },
-        output_schema={
-            "type": "object",
-            "properties": {
-                "processed_data": {"type": "object"},
-                "stats": {"type": "object"}
-            }
-        },
-        required_tools=["data_processor"]
+        }
     )
-    async def process_data(
-        self,
-        data: Dict[str, Any],
-        format: str = "json",
-        filters: List[str] = None
-    ) -> Dict[str, Any]:
+    async def process_data(self, context: Dict[str, Any]) -> str:
         """データを処理して変換"""
-        return {
+        data = context["data"]
+        format = context.get("format", "json")
+        filters = context.get("filters", [])
+        
+        result = {
             "processed_data": data,
             "stats": {
                 "processed_items": len(data),
                 "format": format,
-                "applied_filters": filters or []
+                "applied_filters": filters
             }
         }
+        return str(result)
 
     @task_function(
         name="generate_report",
@@ -67,24 +58,15 @@ class BasicTaskModule(ModuleBase):
             "data": {"type": "object", "description": "レポートデータ", "required": True},
             "template": {"type": "string", "description": "レポートテンプレート"},
             "format": {"type": "string", "description": "出力フォーマット"}
-        },
-        output_schema={
-            "type": "object",
-            "properties": {
-                "report_url": {"type": "string"},
-                "metadata": {"type": "object"}
-            }
-        },
-        required_tools=["template_engine", "pdf_generator"]
+        }
     )
-    async def generate_report(
-        self,
-        data: Dict[str, Any],
-        template: str = "default",
-        format: str = "pdf"
-    ) -> Dict[str, Any]:
+    async def generate_report(self, context: Dict[str, Any]) -> str:
         """レポートを生成"""
-        return {
+        data = context["data"]
+        template = context.get("template", "default")
+        format = context.get("format", "pdf")
+        
+        result = {
             "report_url": f"https://example.com/reports/{template}_{format}",
             "metadata": {
                 "template": template,
@@ -92,6 +74,7 @@ class BasicTaskModule(ModuleBase):
                 "generated_at": "2025-02-05T00:00:00Z"
             }
         }
+        return str(result)
 
     @task_function(
         name="notify_completion",
@@ -100,25 +83,35 @@ class BasicTaskModule(ModuleBase):
             "task_id": {"type": "string", "description": "完了したタスクのID", "required": True},
             "recipients": {"type": "array", "description": "通知先", "required": True},
             "message": {"type": "string", "description": "通知メッセージ"}
-        },
-        output_schema={
-            "type": "object",
-            "properties": {
-                "notification_id": {"type": "string"},
-                "sent_to": {"type": "array"}
-            }
-        },
-        required_tools=["notification_service"]
+        }
     )
-    async def notify_completion(
-        self,
-        task_id: str,
-        recipients: List[str],
-        message: str = None
-    ) -> Dict[str, Any]:
+    async def notify_completion(self, context: Dict[str, Any]) -> str:
         """タスク完了通知を送信"""
-        return {
+        task_id = context["task_id"]
+        recipients = context["recipients"]
+        message = context.get("message", f"Task {task_id} has been completed")
+        
+        result = {
             "notification_id": f"notify_{task_id}",
             "sent_to": recipients,
-            "message": message or f"Task {task_id} has been completed"
+            "message": message
         }
+        return str(result)
+
+    # MCPとの連携用のヘルパーメソッド
+    async def register_with_mcp(self, mcp_server):
+        """MCPサーバーにスキルを登録"""
+        try:
+            skills = {
+                "create_workflow": self.create_workflow,
+                "process_data": self.process_data,
+                "generate_report": self.generate_report,
+                "notify_completion": self.notify_completion
+            }
+            
+            for name, skill in skills.items():
+                await mcp_server.register_skill(name, skill)
+                
+        except Exception as e:
+            print(f"MCPスキル登録エラー: {str(e)}")
+            raise

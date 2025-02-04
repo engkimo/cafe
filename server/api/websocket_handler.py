@@ -1,7 +1,8 @@
 import json
 from fastapi import WebSocket, WebSocketDisconnect
-from typing import Dict, Any
+from typing import Dict, Any, AsyncGenerator
 from datetime import datetime
+import semantic_kernel as sk
 
 from ..core.workflow_manager import WorkflowManager
 
@@ -21,6 +22,14 @@ class WebSocketHandler:
             except Exception as e:
                 print(f"ブロードキャスト中のエラー: {str(e)}")
 
+    async def notify_workflow_update(self, update: Dict[str, Any]):
+        """ワークフローの更新をクライアントに通知"""
+        await self.broadcast({
+            "type": "workflow_update",
+            "update": update,
+            "timestamp": datetime.now().isoformat()
+        })
+
     async def handle_connection(self, websocket: WebSocket):
         """WebSocket接続を処理"""
         connection_id = str(id(websocket))
@@ -36,7 +45,6 @@ class WebSocketHandler:
                     data = await websocket.receive_text()
                     print(f"受信したメッセージ (ID: {connection_id}): {data}")
                     
-                    # クライアントからのping-pongメッセージを処理
                     if data == "ping":
                         await websocket.send_json({
                             "type": "pong",
@@ -52,11 +60,21 @@ class WebSocketHandler:
 
                     if isinstance(response, dict):
                         await websocket.send_json(response)
-                    else:
-                        # 非同期ジェネレータを処理
+                        
+                        # ワークフロー更新の通知
+                        if response.get("type") in ["task_created", "task_updated", "plan_created"]:
+                            await self.notify_workflow_update(response)
+                            
+                    elif isinstance(response, AsyncGenerator):
                         async for task_response in response:
                             print(f"タスク実行結果: {json.dumps(task_response, ensure_ascii=False)}")
                             await websocket.send_json(task_response)
+                            
+                            # 実行状況の更新を通知
+                            await self.notify_workflow_update({
+                                "type": "task_progress",
+                                "task": task_response
+                            })
 
                 except WebSocketDisconnect:
                     print(f"クライアントが正常に切断されました (ID: {connection_id})")
@@ -122,57 +140,39 @@ class WebSocketHandler:
             elif message_type == "execute_all_tasks":
                 if not message.get("taskIds"):
                     raise ValueError("タスクIDのリストが必要です")
-                # 非同期ジェネレータを返す
                 return self.workflow_manager.execute_all_tasks(message["taskIds"])
 
             elif message_type == "update_task":
-                if not message.get("taskId"):
-                    raise ValueError("タスクIDが必要です")
-                if not message.get("inputs"):
-                    raise ValueError("入力値が必要です")
+                if not message.get("taskId") or not message.get("inputs"):
+                    raise ValueError("タスクIDと入力値が必要です")
                 
-                print(f"タスク更新リクエスト - ID: {message['taskId']}, 入力: {message['inputs']}")
+                task_id = int(message["taskId"])
+                inputs = message["inputs"]
+                task = await self.workflow_manager.get_task(task_id)
                 
-                try:
-                    task_id = int(message["taskId"])
-                    inputs = message["inputs"]
-                    
-                    # タスクの種類を取得して、必須フィールドを決定
-                    task = await self.workflow_manager.get_task(task_id)
-                    if not task:
-                        raise ValueError(f"タスクが見つかりません: {task_id}")
-                    
-                    # タスクタイプに応じた必須フィールドの検証
-                    required_fields = []
-                    if task.type == "Create Google Calendar Event":
-                        required_fields = ["attendees", "start_time", "end_time", "subject"]
-                    elif task.type == "Send Gmail":
-                        required_fields = ["to", "subject", "body"]
-                    
-                    if required_fields:
-                        missing_fields = [field for field in required_fields if not inputs.get(field)]
-                        if missing_fields:
-                            raise ValueError(f"必須フィールドが不足しています: {', '.join(missing_fields)}")
-                    
-                    result = await self.workflow_manager.update_task(task_id, inputs)
-                    print(f"タスク更新結果: {json.dumps(result, ensure_ascii=False)}")
-                    
-                    return result  # workflow_managerから返される応答をそのまま使用
-                    
-                except ValueError as e:
-                    error_msg = f"タスクの更新に失敗しました: {str(e)}"
-                    print(f"値エラー: {error_msg}")
-                    return {
-                        "type": "error",
-                        "message": error_msg
-                    }
-                except Exception as e:
-                    error_msg = f"タスクの更新中に予期せぬエラーが発生しました: {str(e)}"
-                    print(f"予期せぬエラー: {error_msg}")
-                    return {
-                        "type": "error",
-                        "message": error_msg
-                    }
+                if not task:
+                    raise ValueError(f"タスクが見つかりません: {task_id}")
+                
+                # Semantic Kernelのコンテキストを作成
+                context = self.plan_executor.kernel.create_new_context()
+                for key, value in inputs.items():
+                    context[key] = str(value)
+                
+                # タスクを実行
+                result = await self.workflow_manager.update_task(task_id, inputs)
+                
+                # MCPサーバーに更新を通知
+                await self.mcp_server.notify_task_progress({
+                    "task_id": task_id,
+                    "status": "updated",
+                    "inputs": inputs,
+                    "result": result
+                })
+                
+                return {
+                    "type": "task_updated",
+                    "task": result
+                }
 
             elif message_type == "delete_all_tasks":
                 return await self.workflow_manager.delete_all_tasks()
@@ -194,7 +194,20 @@ class WebSocketHandler:
             elif message_type == "create_plan":
                 if not message.get("description"):
                     raise ValueError("タスクの説明が必要です")
+                    
+                # Semantic Kernelを使用してプランを生成
+                context = self.plan_executor.kernel.create_new_context()
+                context["description"] = message["description"]
+                
                 tasks = await self.plan_executor.create_plan(message["description"])
+                
+                # MCPサーバーに新しいプランを通知
+                await self.mcp_server._handle_update_workflow({
+                    "workflow_id": "current",
+                    "tasks": [task.dict() for task in tasks],
+                    "auto_save": self.plan_executor.auto_save_mode
+                })
+                
                 return {
                     "type": "plan_created",
                     "tasks": [task.dict() for task in tasks]
@@ -203,7 +216,21 @@ class WebSocketHandler:
             elif message_type == "execute_plan":
                 if not message.get("tasks"):
                     raise ValueError("タスクリストが必要です")
-                return self.plan_executor.execute_plan(message["tasks"])
+                    
+                # プランの実行を開始
+                execution_result = await self.plan_executor.execute_plan(message["tasks"])
+                
+                # 実行結果をMCPサーバーに通知
+                await self.mcp_server.notify_task_progress({
+                    "type": "plan_execution",
+                    "status": execution_result["status"],
+                    "results": execution_result["results"]
+                })
+                
+                return {
+                    "type": "plan_executed",
+                    "result": execution_result
+                }
 
             elif message_type == "get_workflow_status":
                 if not message.get("workflow_id"):

@@ -1,220 +1,166 @@
-# CAFE (Composite AI Flow Engine)
+# Cafe - Composite AI Flow Engine
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-[![codecov](https://codecov.io/gh/yourusername/cafe/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/cafe)
-[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://yourusername.github.io/cafe)
-[![Version](https://img.shields.io/github/v/release/yourusername/cafe)](https://github.com/yourusername/cafe/releases)
+自律的なAIエージェントによるワークフロー自動化システム
 
-![localhost-5174-01-22-2025_05_47_PM](https://github.com/user-attachments/assets/a47cd2df-a075-4db1-9ad8-dada0f631945)
+## 特徴
 
-CAFE is a self-learning, autonomous AI agent capable of automating multi-scale and multi-modal AI models. It dynamically spins up containerized environments as needed, leveraging self-learning capabilities to optimize workflow automation.
+- チャットベースのインターフェース
+- 自問自答モードによる自動タスク生成
+- リアルタイムなワークフロー可視化
+- Semantic Kernelによる高度なタスク実行
+- MCPによる拡張性
 
-## Features
+## アーキテクチャ
 
-- Chat-based workflow creation
-- Multi-service integration (Gmail, Slack, etc.)
-- Containerized service execution
-- Database-driven execution history management
+### フロントエンド
+- React + TypeScript
+- ReactFlow (ワークフロー可視化)
+- WebSocket (リアルタイム通信)
 
-### Supported Use Cases
+### バックエンド
+- FastAPI
+- Semantic Kernel
+- SQLAlchemy
+- Model Context Protocol (MCP)
 
-1. Web Scraping → Image OCR → LLM Summarization
-   - Collect articles and images from news sites and blogs
-   - Extract text from scraped images (ads, screenshots)
-   - Generate summaries and key points using LLMs
-   - Create dashboards for easy content viewing
+## セットアップ
 
-2. Speech Recognition → Sentiment Analysis → Response Generation
-   - Convert meeting audio and customer calls to text
-   - Analyze emotional context (positive, negative, neutral)
-   - Display real-time alerts for customer emotions
-   - Generate appropriate responses based on sentiment
-   - Utilize FAQ and past cases for chatbot responses
-
-3. Video Information Extraction → Topic Classification → LLM Summarization
-   - Convert video audio to text (ASR)
-   - Extract key frames and visualize subtitles
-   - Classify content by theme (sports, politics, entertainment)
-   - Label video segments by topic
-   - Generate highlights and quick summaries
-
-4. Text Analysis → Intent Detection → Automated Tagging
-   - Process emails and social media posts
-   - Classify multiple intents (complaints, inquiries, requests)
-   - Analyze keywords and context
-   - Auto-tag with priority levels and support requirements
-   - Streamline customer support workflow
-
-5. Image Classification → Similar Image Search → Recommendation Generation
-   - Classify uploaded images using pre-trained models
-   - Extract metadata (clothing category, color, brand features)
-   - Search database for similar images
-   - Generate recommendations based on visual information
-   - Implement visual-based recommendation engine
-
-6. Email Automation Support
-   - ChatGPT + Gmail integration
-   - Template-based auto-generation
-
-7. Chat Task Extraction (Slack, Teams)
-   - Automatic chat history summarization
-   - Automated ToDo list generation
-
-8. Meeting-Related Tasks
-   - Schedule coordination automation
-   - Minutes generation
-   - Follow-up email creation
-
-9. Additional Features
-   - Proposal & presentation draft creation
-   - Telemarketing list generation
-   - Automated customer inquiry handling
-
-## Architecture
-
-- Frontend: React + Vite
-- Backend: FastAPI + SQLAlchemy
-- Database: PostgreSQL
-- Container Management: Docker
-
-## Setup
-
-### Prerequisites
-
-- Python 3.11 or higher
-- Docker & Docker Compose
-- PostgreSQL
-- [Rye](https://rye-up.com/guide/installation/) (Python package manager)
-
-### Environment Setup
-
-1. Clone repository and install dependencies
-
+1. 依存関係のインストール:
 ```bash
-git clone [repository-url]
-cd cafe
-rye sync
+# フロントエンド
+npm install
+
+# バックエンド
+pip install -r requirements.txt
 ```
 
-2. Configure environment variables
-
+2. 環境変数の設定:
 ```bash
 cp .env.example .env
 ```
 
-Required environment variables in .env:
-- DATABASE_URL
-- OPENAI_API_KEY
-- Other necessary API keys
+必要な環境変数:
+- OPENAI_API_KEY: OpenAI APIキー
+- DATABASE_URL: データベース接続URL
 
-3. Launch Docker containers
-
+3. データベースのセットアップ:
 ```bash
-docker-compose up -d
+npm run db:generate
+npm run db:push
 ```
 
-4. Run database migrations
-
+4. 開発サーバーの起動:
 ```bash
-cd server
-rye run alembic upgrade head
-```
-
-5. Start development servers
-
-Backend:
-```bash
-rye run python -m server.main
-```
-
-Frontend:
-```bash
+# フロントエンド
 npm run dev
+
+# バックエンド
+python -m server.run
 ```
 
-## Development Guide
+## 使い方
 
-### Adding New Workflows
+1. チャットインターフェース
+- タスクを自然言語で説明
+- 自問自答モードで自動タスク生成
+- リアルタイムなフィードバック
 
-1. Service Integration
-   - Add Docker image generation logic in server/docker_manager.py
-   - Update .env.example with required variables
+2. ワークフロー管理
+- タスクの依存関係を可視化
+- ドラッグ&ドロップで配置調整
+- 実行状況のリアルタイム更新
 
-2. Adding New Task Types
-   - Add new tools to WorkflowManager class's available_tools
-   - Create Docker images as needed
+3. MCPによる拡張
+- カスタムツールの追加
+- 外部サービスとの連携
+- ワークフローの自動化
 
-### Database Migrations
+## 主要コンポーネント
 
-1. Model Changes
-   - Update SQLAlchemy models in server/models.py
+### PlanEngine
+- Semantic Kernelを使用したプラン生成
+- スキルの管理と実行
+- 実行履歴の管理
 
-2. Generate Migration
+### WorkflowServer (MCP)
+- ワークフローの状態管理
+- リアルタイム更新の配信
+- カスタムツールの統合
+
+### BasicTaskModule
+- 基本的なタスク機能
+- Semantic Kernelスキル
+- 拡張可能なモジュール設計
+
+## 開発ガイド
+
+### 新しいタスクの追加
+
+1. スキルの定義:
+```python
+@sk_function(
+    description="タスクの説明",
+    name="task_name"
+)
+@sk_function_context_parameter(
+    name="param1",
+    description="パラメータ1の説明"
+)
+async def your_task(self, context: SKContext) -> str:
+    # タスクの実装
+    return str(result)
+```
+
+2. MCPサーバーへの登録:
+```python
+await mcp_server.register_skill("task_name", your_task)
+```
+
+### カスタムツールの追加
+
+1. MCPサーバーの作成:
 ```bash
-cd server
-alembic revision --autogenerate -m "description of changes"
+cd /Users/ohoriryosuke/Documents/Cline/MCP
+npx @modelcontextprotocol/create-server your-tool-name
 ```
 
-3. Apply Migration
-```bash
-alembic upgrade head
+2. ツールの実装:
+```typescript
+class YourTool {
+    @sk_function(...)
+    async execute(context: SKContext): Promise<string> {
+        // ツールの実装
+    }
+}
 ```
 
-## Troubleshooting
+3. 設定の追加:
+```json
+{
+  "mcpServers": {
+    "your-tool": {
+      "command": "python",
+      "args": ["-m", "your_module"],
+      "env": {},
+      "disabled": false,
+      "alwaysAllow": []
+    }
+  }
+}
+```
 
-### Common Issues and Solutions
+## トラブルシューティング
 
-1. Docker Issues
-   - Verify Docker daemon status
-   ```bash
-   docker ps
-   ```
-   - Check for port conflicts
-   ```bash
-   docker-compose ps
-   ```
+1. タスクが失敗する場合:
+- ワークフローパネルでエラーメッセージを確認
+- 必要なパラメータが正しく設定されているか確認
+- 依存関係に問題がないか確認
 
-2. Database Connection Errors
-   - Check PostgreSQL container status
-   ```bash
-   docker-compose logs db
-   ```
-   - Verify environment variables
-   ```bash
-   echo $DATABASE_URL
-   ```
+2. MCPツールの問題:
+- ログを確認
+- 環境変数が正しく設定されているか確認
+- 必要な権限があるか確認
 
-3. API Authentication Errors
-   - Check environment variables
-   ```bash
-   echo $OPENAI_API_KEY
-   ```
-   - Verify API key validity
-   ```bash
-   curl https://api.openai.com/v1/models \
-     -H "Authorization: Bearer $OPENAI_API_KEY"
-   ```
+## ライセンス
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-Copyright (c) 2025 CAFE Contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+MIT License - 詳細は[LICENSE](LICENSE)ファイルを参照してください。
