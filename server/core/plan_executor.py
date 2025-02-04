@@ -3,7 +3,6 @@ import asyncio
 from datetime import datetime
 import json
 import semantic_kernel as sk
-from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion, OpenAIChatCompletion
 
 from .task_executor import TaskExecutor
 from .decorators import ModuleBase, get_module_functions
@@ -26,13 +25,46 @@ class PlanExecutor:
         
         # Semantic Kernelの初期化
         self.kernel = sk.Kernel()
-        api_key = self.task_executor.openai_client.api_key
         
-        # OpenAIサービスの設定
-        self.chat_service = OpenAIChatCompletion(
-            ai_model_id="gpt-4",
-            api_key=api_key
-        )
+        # プラン生成用のプロンプト
+        self.plan_prompt = """
+        与えられたタスクを実行可能なサブタスクに分解し、それぞれの依存関係を特定してください。
+
+        タスク:
+        {{$input}}
+
+        利用可能な関数:
+        {{$available_functions}}
+
+        出力は以下のJSON形式で返してください:
+        {
+            "tasks": [
+                {
+                    "name": "タスク名",
+                    "type": "関数タイプ",
+                    "inputs": {},
+                    "dependencies": []
+                }
+            ]
+        }
+        """
+        
+        # コード生成用のプロンプト
+        self.code_prompt = """
+        以下のタスクを実行するPythonコードを生成してください:
+
+        タスク名: {{$task_name}}
+        タイプ: {{$task_type}}
+        入力: {{$inputs}}
+
+        必要なライブラリ:
+        - google-auth
+        - google-auth-oauthlib
+        - google-auth-httplib2
+        - google-api-python-client
+
+        出力は実行可能なPythonコードのみを返してください。
+        """
         
     def _load_module_functions(self) -> Dict[str, Dict[str, Any]]:
         """全モジュールから利用可能な関数を読み込む"""
@@ -49,24 +81,21 @@ class PlanExecutor:
     async def create_plan(self, task_description: str) -> List[Task]:
         """タスク説明からプランを生成"""
         try:
-            # OpenAI APIを直接使用してプランを生成
+            # OpenAI APIを使用してプランを生成
             messages = [
                 {
                     "role": "system",
-                    "content": f"""
-                    与えられたタスクを実行可能なサブタスクに分解し、それぞれの依存関係を特定してください。
-                    
-                    利用可能な関数:
-                    {json.dumps(self._available_functions, ensure_ascii=False, indent=2)}
-                    """
-                },
-                {
-                    "role": "user",
-                    "content": task_description
+                    "content": self.plan_prompt.replace(
+                        "{{$input}}", task_description
+                    ).replace(
+                        "{{$available_functions}}", 
+                        json.dumps(self._available_functions, ensure_ascii=False, indent=2)
+                    )
                 }
             ]
             
-            response = await self.chat_service.complete_chat(
+            response = await self.task_executor.openai_client.chat.completions.create(
+                model="gpt-4",
                 messages=messages,
                 temperature=0.7,
                 max_tokens=2000
@@ -76,6 +105,28 @@ class PlanExecutor:
             
             tasks = []
             for task_info in plan["tasks"]:
+                # コードを生成
+                code_messages = [
+                    {
+                        "role": "system",
+                        "content": self.code_prompt.replace(
+                            "{{$task_name}}", task_info["name"]
+                        ).replace(
+                            "{{$task_type}}", task_info["type"]
+                        ).replace(
+                            "{{$inputs}}", 
+                            json.dumps(task_info.get("inputs", {}), ensure_ascii=False, indent=2)
+                        )
+                    }
+                ]
+                
+                code_response = await self.task_executor.openai_client.chat.completions.create(
+                    model="gpt-4",
+                    messages=code_messages,
+                    temperature=0.7,
+                    max_tokens=2000
+                )
+                
                 task = Task(
                     id=len(tasks) + 1,
                     name=task_info["name"],
@@ -85,7 +136,8 @@ class PlanExecutor:
                     status="pending",
                     dependencies=task_info.get("dependencies", []),
                     created_at=datetime.now(),
-                    updated_at=datetime.now()
+                    updated_at=datetime.now(),
+                    code=code_response.choices[0].message.content
                 )
                 tasks.append(task)
                 

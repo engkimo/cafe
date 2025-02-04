@@ -4,7 +4,6 @@ import inspect
 from datetime import datetime
 import json
 import semantic_kernel as sk
-from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
 
 from .decorators import WorkflowModule, plan_step
 from ..db.task_repository import TaskRepository
@@ -16,8 +15,45 @@ class PlanEngine:
         self.task_repository = task_repository
         self.execution_history: List[Dict[str, Any]] = []
         
-        # Semantic Kernelの初期化
-        self.kernel = sk.Kernel()
+        # プラン生成用のプロンプト
+        self.plan_prompt = """
+        与えられた目標を達成するために、利用可能なスキルを使用して実行プランを生成してください。
+
+        目標:
+        {{$input}}
+
+        利用可能なスキル:
+        {{$available_skills}}
+
+        出力は以下のJSON形式で返してください:
+        {
+            "tasks": [
+                {
+                    "name": "タスク名",
+                    "type": "スキル名",
+                    "inputs": {},
+                    "dependencies": []
+                }
+            ]
+        }
+        """
+        
+        # コード生成用のプロンプト
+        self.code_prompt = """
+        以下のタスクを実行するPythonコードを生成してください:
+
+        タスク名: {{$task_name}}
+        タイプ: {{$task_type}}
+        入力: {{$inputs}}
+
+        必要なライブラリ:
+        - google-auth
+        - google-auth-oauthlib
+        - google-auth-httplib2
+        - google-api-python-client
+
+        出力は実行可能なPythonコードのみを返してください。
+        """
         
     async def load_module(self, module_path: str) -> WorkflowModule:
         """モジュールを動的にロード"""
@@ -33,10 +69,6 @@ class PlanEngine:
                     # インスタンス化してモジュールを登録
                     instance = obj()
                     self.modules[instance.name] = instance
-                    
-                    # Semantic Kernelにスキルとして登録
-                    self.kernel.import_skill(instance, instance.name)
-                    
                     return instance
                     
             raise ValueError(f"WorkflowModuleが見つかりません: {module_path}")
@@ -47,53 +79,58 @@ class PlanEngine:
     async def generate_plan(self, goal: str) -> Dict[str, Any]:
         """目標からプランを生成"""
         try:
-            # 利用可能なステップの情報を収集
-            available_steps = {}
+            # 利用可能なスキルの情報を収集
+            available_skills = {}
             for module in self.modules.values():
-                for name, method in inspect.getmembers(module):
-                    if hasattr(method, 'is_plan_step'):
-                        available_steps[method.step_name] = {
-                            'name': method.step_name,
-                            'description': method.step_description,
-                            'input_schema': method.input_schema,
-                            'output_schema': method.output_schema,
-                            'dependencies': method.dependencies
-                        }
+                metadata = module.get_skill_metadata()
+                available_skills.update(metadata["functions"])
             
-            # Semantic Kernelを使用してプランを生成
-            context = self.kernel.create_new_context()
-            context["goal"] = goal
-            context["available_steps"] = json.dumps(available_steps, ensure_ascii=False)
+            # OpenAI APIを使用してプランを生成
+            messages = [
+                {
+                    "role": "system",
+                    "content": self.plan_prompt.replace(
+                        "{{$input}}", goal
+                    ).replace(
+                        "{{$available_skills}}", 
+                        json.dumps(available_skills, ensure_ascii=False, indent=2)
+                    )
+                }
+            ]
             
-            # プラン生成のプロンプト
-            prompt = """
-            目標を達成するために必要なステップを利用可能なステップから選択し、実行プランを生成してください。
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=2000
+            )
             
-            利用可能なステップ:
-            {{$available_steps}}
+            plan = json.loads(response.choices[0].message.content)
             
-            目標:
-            {{$goal}}
-            
-            出力は以下のJSON形式で返してください:
-            {
-                "goal": "目標の説明",
-                "steps": [
+            # 各タスクのコードを生成
+            for task in plan["tasks"]:
+                code_messages = [
                     {
-                        "name": "ステップ名",
-                        "module": "モジュール名",
-                        "inputs": {},
-                        "expected_outputs": {},
-                        "dependencies": []
+                        "role": "system",
+                        "content": self.code_prompt.replace(
+                            "{{$task_name}}", task["name"]
+                        ).replace(
+                            "{{$task_type}}", task["type"]
+                        ).replace(
+                            "{{$inputs}}", 
+                            json.dumps(task.get("inputs", {}), ensure_ascii=False, indent=2)
+                        )
                     }
                 ]
-            }
-            """
-            
-            # プランの生成
-            plan_function = self.kernel.create_semantic_function(prompt)
-            plan_result = await plan_function.invoke_async(context=context)
-            plan = json.loads(plan_result.result)
+                
+                code_response = await self.openai_client.chat.completions.create(
+                    model="gpt-4",
+                    messages=code_messages,
+                    temperature=0.7,
+                    max_tokens=2000
+                )
+                
+                task["code"] = code_response.choices[0].message.content
             
             return plan
             
@@ -111,9 +148,6 @@ class PlanEngine:
                 "steps": []
             }
             
-            # Semantic Kernelのコンテキストを作成
-            sk_context = self.kernel.create_new_context()
-            
             # 各ステップを実行
             for step in plan["steps"]:
                 step_context = {
@@ -122,31 +156,27 @@ class PlanEngine:
                 }
                 
                 try:
-                    # モジュールとステップを取得
-                    module = self.modules[step["module"]]
-                    step_func = getattr(module, step["name"])
-                    
                     # 依存関係のチェック
                     self._check_dependencies(step, execution_context)
                     
-                    # 入力の準備
-                    inputs = self._prepare_inputs(step, execution_context)
-                    for key, value in inputs.items():
-                        sk_context[key] = str(value)
-                    
-                    # ステップを実行
-                    result = await step_func(sk_context)
-                    
-                    # 結果を記録
-                    step_context.update({
-                        "status": "completed",
-                        "outputs": json.loads(result.result),
-                        "end_time": datetime.now().isoformat()
-                    })
-                    results.append(result)
-                    
-                    # 変数を更新
-                    execution_context["variables"].update(json.loads(result.result))
+                    # コードを実行
+                    if "code" in step:
+                        # ローカル変数として実行コンテキストを作成
+                        local_vars = {
+                            "inputs": step.get("inputs", {}),
+                            "outputs": {}
+                        }
+                        
+                        # コードを実行
+                        exec(step["code"], {}, local_vars)
+                        
+                        # 結果を記録
+                        step_context.update({
+                            "status": "completed",
+                            "outputs": local_vars.get("outputs", {}),
+                            "end_time": datetime.now().isoformat()
+                        })
+                        results.append(local_vars.get("outputs", {}))
                     
                 except Exception as e:
                     step_context.update({
@@ -182,21 +212,6 @@ class PlanEngine:
                     break
             if not found:
                 raise ValueError(f"依存ステップが完了していません: {dep}")
-    
-    def _prepare_inputs(self, step: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-        """ステップの入力を準備"""
-        inputs = step.get("inputs", {}).copy()
-        
-        # 変数の参照を解決
-        for key, value in inputs.items():
-            if isinstance(value, str) and value.startswith("$"):
-                var_name = value[1:]
-                if var_name in context["variables"]:
-                    inputs[key] = context["variables"][var_name]
-                else:
-                    raise ValueError(f"変数が見つかりません: {var_name}")
-        
-        return inputs
     
     async def get_execution_history(self) -> List[Dict[str, Any]]:
         """実行履歴を取得"""
