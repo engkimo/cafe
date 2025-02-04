@@ -78,6 +78,16 @@ class WorkflowManager:
         """コンポーネントの初期化"""
         self.google_auth = GoogleAuthManager()
         print("Google Calendar APIクライアントの初期化が完了しました")
+        
+        # TaskRepositoryの初期化
+        self.task_repository = TaskRepository(self.async_session())
+        
+        # TaskExecutorの初期化
+        self.task_executor = TaskExecutor(
+            openai_client=self.openai_client,
+            task_repository=self.task_repository,
+            google_auth=self.google_auth
+        )
 
     def _initialize_clients(self):
         # This method is mentioned in the __init__ method but its implementation is not provided in the original file or the new file

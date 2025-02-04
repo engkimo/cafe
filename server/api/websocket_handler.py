@@ -6,10 +6,20 @@ from datetime import datetime
 from ..core.workflow_manager import WorkflowManager
 
 class WebSocketHandler:
-    def __init__(self, workflow_manager: WorkflowManager):
+    def __init__(self, workflow_manager: WorkflowManager, plan_executor, mcp_server):
         self.workflow_manager = workflow_manager
+        self.plan_executor = plan_executor
+        self.mcp_server = mcp_server
         self.active_connections: Dict[str, WebSocket] = {}
         print("WebSocketハンドラーが初期化されました")
+
+    async def broadcast(self, message: Dict[str, Any]):
+        """全ての接続中のクライアントにメッセージをブロードキャスト"""
+        for connection in self.active_connections.values():
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                print(f"ブロードキャスト中のエラー: {str(e)}")
 
     async def handle_connection(self, websocket: WebSocket):
         """WebSocket接続を処理"""
@@ -166,6 +176,45 @@ class WebSocketHandler:
 
             elif message_type == "delete_all_tasks":
                 return await self.workflow_manager.delete_all_tasks()
+
+            elif message_type == "set_auto_save":
+                if "enabled" not in message:
+                    raise ValueError("enabled パラメータが必要です")
+                self.plan_executor.set_auto_save_mode(message["enabled"])
+                await self.mcp_server._handle_update_workflow({
+                    "workflow_id": "current",
+                    "tasks": [],
+                    "auto_save": message["enabled"]
+                })
+                return {
+                    "type": "auto_save_updated",
+                    "enabled": message["enabled"]
+                }
+
+            elif message_type == "create_plan":
+                if not message.get("description"):
+                    raise ValueError("タスクの説明が必要です")
+                tasks = await self.plan_executor.create_plan(message["description"])
+                return {
+                    "type": "plan_created",
+                    "tasks": [task.dict() for task in tasks]
+                }
+
+            elif message_type == "execute_plan":
+                if not message.get("tasks"):
+                    raise ValueError("タスクリストが必要です")
+                return self.plan_executor.execute_plan(message["tasks"])
+
+            elif message_type == "get_workflow_status":
+                if not message.get("workflow_id"):
+                    raise ValueError("workflow_id が必要です")
+                status = await self.mcp_server._handle_get_workflow_status({
+                    "workflow_id": message["workflow_id"]
+                })
+                return {
+                    "type": "workflow_status",
+                    "status": status
+                }
 
             else:
                 error_msg = f"不明なメッセージタイプです: {message_type}"

@@ -6,7 +6,12 @@ import httpx
 from dotenv import load_dotenv
 from pathlib import Path
 from contextlib import asynccontextmanager
+from openai import AsyncOpenAI
+
 from .core.workflow_manager import WorkflowManager
+from .core.plan_executor import PlanExecutor
+from .core.mcp.workflow_server import WorkflowServer
+from .core.modules.basic_tasks import BasicTaskModule
 from .api.websocket_handler import WebSocketHandler
 
 # .envファイルを読み込む
@@ -28,9 +33,35 @@ websocket_handler = None
 async def lifespan(app: FastAPI):
     # 起動時の処理
     global workflow_manager, websocket_handler
+    
+    # OpenAI クライアントの初期化
+    openai_client = AsyncOpenAI(api_key=openai_api_key)
+    
+    # WorkflowManager の初期化
     workflow_manager = WorkflowManager()
-    websocket_handler = WebSocketHandler(workflow_manager)
+    
+    # PlanExecutor の初期化
+    modules = [BasicTaskModule()]
+    plan_executor = PlanExecutor(
+        task_executor=workflow_manager.task_executor,
+        task_repository=workflow_manager.task_repository,
+        modules=modules
+    )
+    
+    # MCP WorkflowServer の初期化
+    mcp_server = WorkflowServer()
+    await mcp_server.run()
+    
+    # WebSocketHandler の初期化
+    websocket_handler = WebSocketHandler(
+        workflow_manager=workflow_manager,
+        plan_executor=plan_executor,
+        mcp_server=mcp_server
+    )
+    
+    print("全てのコンポーネントが初期化されました")
     yield
+    
     # シャットダウン時の処理
     if websocket_handler:
         for ws in websocket_handler.active_connections.values():
@@ -38,6 +69,13 @@ async def lifespan(app: FastAPI):
                 await ws.close()
             except:
                 pass
+    
+    # MCP サーバーのクリーンアップ
+    if mcp_server:
+        try:
+            await mcp_server.server.close()
+        except:
+            pass
 
 app = FastAPI(lifespan=lifespan)
 

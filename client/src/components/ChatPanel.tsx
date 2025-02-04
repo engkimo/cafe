@@ -3,9 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import { Send } from "lucide-react";
-import { Task } from "@/pages/Home";
-import { TaskSuggestion, convertSuggestionToTask } from "@/lib/taskSuggestion";
+import type { Task } from "@/pages/Home";
+import type { TaskSuggestion } from "@/lib/taskSuggestion";
+import { convertSuggestionToTask } from "@/lib/taskSuggestion";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Rnd } from "react-rnd";
@@ -26,8 +28,19 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [autoSaveMode, setAutoSaveMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  const handleAutoSaveChange = (checked: boolean) => {
+    setAutoSaveMode(checked);
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'set_auto_save',
+        enabled: checked
+      }));
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -54,7 +67,7 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
           console.log('Added new message:', newMessage);
 
           if (data.suggested_tasks?.length > 0) {
-            data.suggested_tasks.forEach((suggestion: TaskSuggestion) => {
+            for (const suggestion of data.suggested_tasks) {
               console.log('Creating task from suggestion:', suggestion);
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
@@ -62,7 +75,7 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
                   task: convertSuggestionToTask(suggestion)
                 }));
               }
-            });
+            }
           }
         } else if (data.type === 'error') {
           setLoading(false);
@@ -85,11 +98,14 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
 
     ws.addEventListener('message', handleMessage);
     return () => ws.removeEventListener('message', handleMessage);
-  }, [ws, onNewTask, toast]);
+  }, [ws, toast]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const scroll = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+    scroll();
+  }, []);
 
   const handleSend = async () => {
     if (!input.trim() || !ws || ws.readyState !== WebSocket.OPEN) {
@@ -139,7 +155,7 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
               animate={{ opacity: [0, 1, 0] }}
               transition={{
                 duration: 1,
-                repeat: Infinity,
+                repeat: Number.POSITIVE_INFINITY,
                 delay: i * 0.2,
                 ease: "easeInOut"
               }}
@@ -169,6 +185,14 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
         <div className="p-4 border-b cursor-move drag-handle">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">チャット</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">自動保存</span>
+              <Switch
+                checked={autoSaveMode}
+                onCheckedChange={handleAutoSaveChange}
+                aria-label="自動保存モード"
+              />
+            </div>
           </div>
         </div>
         <ScrollArea className="flex-1">
@@ -190,8 +214,8 @@ export default function ChatPanel({ onNewTask, ws }: ChatPanelProps) {
                 </div>
                 {msg.suggestedTasks && msg.suggestedTasks.length > 0 && (
                   <div className="mt-2 space-y-2">
-                    {msg.suggestedTasks.map((task, index) => (
-                      <div key={index} className="text-sm text-muted-foreground">
+                    {msg.suggestedTasks.map((task) => (
+                      <div key={`${task.name}-${task.confidence}`} className="text-sm text-muted-foreground">
                         提案されたタスク: {task.name} ({Math.round(task.confidence * 100)}% 信頼度)
                       </div>
                     ))}

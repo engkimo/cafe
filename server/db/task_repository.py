@@ -41,8 +41,13 @@ class TaskRepository:
         return list(result.scalars().all())
 
     async def get_task_by_name(self, task_name: str) -> Optional[Task]:
-        """名前に基づいてタスクを取得"""
-        query = select(Task).where(Task.name == task_name)
+        """名前に基づいて最新のタスクを取得"""
+        query = (
+            select(Task)
+            .where(Task.name == task_name)
+            .order_by(Task.created_at.desc())
+            .limit(1)
+        )
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
