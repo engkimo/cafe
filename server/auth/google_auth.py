@@ -4,6 +4,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
+import webbrowser
 
 class GoogleAuthManager:
     def __init__(self):
@@ -37,14 +38,15 @@ class GoogleAuthManager:
                             "installed": {
                                 "client_id": client_id,
                                 "client_secret": client_secret,
-                                "redirect_uris": ["urn:ietf:wg:oauth:2.0:oob"],
+                                "redirect_uris": ["http://localhost:8080/"],
                                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                                 "token_uri": "https://oauth2.googleapis.com/token"
                             }
                         },
                         SCOPES
                     )
-                    creds = flow.run_console()
+                    # ローカルサーバーを起動して認証を行う
+                    creds = flow.run_local_server(port=8080)
 
                 # 認証情報を保存
                 with open(token_path, 'wb') as token:

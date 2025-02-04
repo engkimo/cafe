@@ -57,6 +57,12 @@ class TaskExecutor:
                 result = await self._execute_calendar_event_task(task)
             elif task.type == "Send Gmail":
                 result = await self._execute_gmail_task(task)
+            elif task.type == "Record Audio":
+                result = await self._execute_record_audio_task(task)
+            elif task.type == "Transcribe Audio":
+                result = await self._execute_transcribe_audio_task(task)
+            elif task.type == "Extract Key Points":
+                result = await self._execute_extract_key_points_task(task)
             else:
                 raise ValueError(f"未対応のタスクタイプ: {task.type}")
             
@@ -276,6 +282,186 @@ class TaskExecutor:
         except Exception as e:
             task.outputs = {"success": False, "error": str(e)}
             task.status = "failed"
+            await self.task_repository.update_task(task)
+            raise
+
+    async def _execute_record_audio_task(self, task: Task) -> Dict[str, Any]:
+        """音声録音タスクを実行"""
+        try:
+            # デフォルト値の設定
+            if not task.inputs:
+                task.inputs = {
+                    "format": "mp3",
+                    "duration": 3600,  # 1時間
+                    "quality": "high"
+                }
+
+            print(f"音声録音開始: {task.inputs}")
+
+            # 録音処理のシミュレーション
+            # 実際の実装では、ここで録音デバイスを制御する処理を追加
+            task.outputs = {
+                "action": "音声録音",
+                "result": "音声を録音しました",
+                "output_data": {
+                    "file_path": f"/recordings/meeting_{task.id}.{task.inputs['format']}",
+                    "duration": task.inputs["duration"],
+                    "format": task.inputs["format"],
+                    "quality": task.inputs["quality"]
+                }
+            }
+            
+            # タスクのステータスを更新
+            task.status = "completed"
+            await self.task_repository.update_task(task)
+            
+            return {
+                "type": "task_executed",
+                "task": {
+                    "id": task.id,
+                    "name": task.name,
+                    "type": task.type,
+                    "inputs": task.inputs,
+                    "outputs": task.outputs,
+                    "status": task.status,
+                    "dependencies": task.dependencies,
+                    "tools": []
+                }
+            }
+            
+        except Exception as e:
+            print(f"音声録音エラー: {str(e)}")
+            task.status = "failed"
+            task.outputs = {"error": str(e)}
+            await self.task_repository.update_task(task)
+            raise
+
+    async def _execute_transcribe_audio_task(self, task: Task) -> Dict[str, Any]:
+        """音声文字起こしタスクを実行"""
+        try:
+            # デフォルト値の設定
+            if not task.inputs:
+                task.inputs = {
+                    "language": "ja",
+                    "model": "whisper-1"
+                }
+
+            print(f"文字起こし開始: {task.inputs}")
+
+            # 依存タスクから音声ファイルのパスを取得
+            audio_file_path = None
+            for dep_name in task.dependencies:
+                dep_task = await self.task_repository.get_task_by_name(dep_name)
+                if dep_task and dep_task.outputs:
+                    output_data = dep_task.outputs.get("output_data", {})
+                    if "file_path" in output_data:
+                        audio_file_path = output_data["file_path"]
+                        break
+
+            if not audio_file_path:
+                raise ValueError("音声ファイルが見つかりません")
+
+            # 文字起こし処理のシミュレーション
+            # 実際の実装では、ここでWhisper APIを呼び出す
+            task.outputs = {
+                "action": "音声文字起こし",
+                "result": "音声を文字に変換しました",
+                "output_data": {
+                    "text": "ミーティングの文字起こし内容がここに入ります。",
+                    "language": task.inputs["language"],
+                    "model": task.inputs["model"],
+                    "source_file": audio_file_path
+                }
+            }
+            
+            # タスクのステータスを更新
+            task.status = "completed"
+            await self.task_repository.update_task(task)
+            
+            return {
+                "type": "task_executed",
+                "task": {
+                    "id": task.id,
+                    "name": task.name,
+                    "type": task.type,
+                    "inputs": task.inputs,
+                    "outputs": task.outputs,
+                    "status": task.status,
+                    "dependencies": task.dependencies,
+                    "tools": []
+                }
+            }
+            
+        except Exception as e:
+            print(f"文字起こしエラー: {str(e)}")
+            task.status = "failed"
+            task.outputs = {"error": str(e)}
+            await self.task_repository.update_task(task)
+            raise
+
+    async def _execute_extract_key_points_task(self, task: Task) -> Dict[str, Any]:
+        """重要ポイント抽出タスクを実行"""
+        try:
+            # デフォルト値の設定
+            if not task.inputs:
+                task.inputs = {
+                    "language": "ja",
+                    "max_points": 5
+                }
+
+            print(f"重要ポイント抽出開始: {task.inputs}")
+
+            # 依存タスクから文字起こしテキストを取得
+            text = None
+            for dep_name in task.dependencies:
+                dep_task = await self.task_repository.get_task_by_name(dep_name)
+                if dep_task and dep_task.outputs:
+                    output_data = dep_task.outputs.get("output_data", {})
+                    if "text" in output_data:
+                        text = output_data["text"]
+                        break
+
+            if not text:
+                raise ValueError("文字起こしテキストが見つかりません")
+
+            # 重要ポイント抽出のシミュレーション
+            # 実際の実装では、ここでGPT-4を使用して重要ポイントを抽出
+            task.outputs = {
+                "action": "重要ポイント抽出",
+                "result": "重要なポイントを抽出しました",
+                "output_data": {
+                    "key_points": [
+                        "重要ポイント1",
+                        "重要ポイント2",
+                        "重要ポイント3"
+                    ],
+                    "language": task.inputs["language"],
+                    "source_text": text[:100] + "..."  # テキストの一部のみを保存
+                }
+            }
+            
+            # タスクのステータスを更新
+            task.status = "completed"
+            await self.task_repository.update_task(task)
+            
+            return {
+                "type": "task_executed",
+                "task": {
+                    "id": task.id,
+                    "name": task.name,
+                    "type": task.type,
+                    "inputs": task.inputs,
+                    "outputs": task.outputs,
+                    "status": task.status,
+                    "dependencies": task.dependencies,
+                    "tools": []
+                }
+            }
+            
+        except Exception as e:
+            print(f"重要ポイント抽出エラー: {str(e)}")
+            task.status = "failed"
+            task.outputs = {"error": str(e)}
             await self.task_repository.update_task(task)
             raise
 

@@ -13,12 +13,12 @@ class TaskRepository:
     async def create_task(self, task_data: Dict[str, Any]) -> Task:
         """新しいタスクを作成"""
         task = Task(
-            name=task_data.get("name", ""),
+            name=task_data["name"],
             type=task_data["type"],
             inputs=task_data.get("inputs", {}),
-            outputs={},
+            outputs=task_data.get("outputs", {}),
             status="pending",
-            dependencies=task_data.get("dependencies", []),
+            dependencies=task_data.get("dependencies", [])
         )
         self.session.add(task)
         await self.session.commit()
@@ -26,10 +26,9 @@ class TaskRepository:
         return task
 
     async def get_task_by_id(self, task_id: int) -> Optional[Task]:
-        """IDによるタスクの取得"""
-        result = await self.session.execute(
-            select(Task).where(Task.id == task_id)
-        )
+        """IDに基づいてタスクを取得"""
+        query = select(Task).where(Task.id == task_id)
+        result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
     async def get_tasks_by_name(self, task_name: str) -> List[Task]:
@@ -42,27 +41,14 @@ class TaskRepository:
         return list(result.scalars().all())
 
     async def get_task_by_name(self, task_name: str) -> Optional[Task]:
-        """名前による最新タスクの取得"""
-        result = await self.session.execute(
-            select(Task)
-            .where(Task.name == task_name)
-            .order_by(Task.created_at.desc())
-            .limit(1)
-        )
+        """名前に基づいてタスクを取得"""
+        query = select(Task).where(Task.name == task_name)
+        result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
     async def update_task(self, task: Task) -> None:
-        """タスクの更新"""
-        try:
-            print(f"タスク更新開始 - ID: {task.id}, 入力: {json.dumps(task.inputs, ensure_ascii=False)}")
-            self.session.add(task)
-            await self.session.commit()
-            await self.session.refresh(task)
-            print(f"タスク更新完了 - ID: {task.id}")
-        except Exception as e:
-            print(f"タスク更新エラー - ID: {task.id}, エラー: {str(e)}")
-            await self.session.rollback()
-            raise
+        """タスクを更新"""
+        await self.session.commit()
 
     async def delete_all_tasks(self) -> None:
         """すべてのタスクを削除"""
@@ -97,4 +83,16 @@ class TaskRepository:
         result = await self.session.execute(
             select(Task).where(Task.dependencies.contains([task_name]))
         )
+        return result.scalars().all()
+
+    async def get_tasks_by_type(self, task_type: str) -> List[Task]:
+        """タイプに基づいてタスクを取得"""
+        query = select(Task).where(Task.type == task_type)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def get_all_tasks(self) -> List[Task]:
+        """すべてのタスクを取得"""
+        query = select(Task)
+        result = await self.session.execute(query)
         return result.scalars().all()
