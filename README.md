@@ -5,8 +5,6 @@
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://yourusername.github.io/cafe)
 [![Version](https://img.shields.io/github/v/release/yourusername/cafe)](https://github.com/yourusername/cafe/releases)
 
-![localhost-5174-01-22-2025_05_47_PM](https://github.com/user-attachments/assets/a47cd2df-a075-4db1-9ad8-dada0f631945)
-
 CAFE is a self-learning, autonomous AI agent capable of automating multi-scale and multi-modal AI models. It dynamically spins up containerized environments as needed, leveraging self-learning capabilities to optimize workflow automation.
 
 ## Features
