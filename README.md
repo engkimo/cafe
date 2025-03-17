@@ -56,7 +56,7 @@ OPENAI_MODEL=gpt-4-turbo
 
 ### 5. Set Up Weaviate (for GraphRAG)
 ```bash
-docker-compose -f weaviate-docker-compose.yml up -d
+docker-compose -f docker-compose.yml up -d
 ```
 
 ## Usage
