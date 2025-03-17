@@ -1,63 +1,19 @@
-version: '3.8'
-
+# weaviate-docker-compose.yml
+version: '3.4'
 services:
-  db:
-    image: postgres:16
-    container_name: cafe-db
-    environment:
-      POSTGRES_DB: cafe
-      POSTGRES_USER: cafe
-      POSTGRES_PASSWORD: cafe
+  weaviate:
+    image: semitechnologies/weaviate:1.23.9
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cafe"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  registry:
-    image: registry:2
-    container_name: cafe-registry
-    ports:
-      - "5050:5000"
-    volumes:
-      - registry_data:/var/lib/registry
+      - "8080:8080"
     environment:
-      REGISTRY_STORAGE_DELETE_ENABLED: "true"
-      DOCKER_REGISTRY_URL: "localhost:5050"
-
-  mailserver:
-    build:
-      context: ./config/mailserver
-      dockerfile: Dockerfile
-    container_name: cafe-mailserver
-    hostname: mail.cafe.local
-    environment:
-      RELAY_HOST: smtp.gmail.com
-      RELAY_PORT: 587
-      RELAY_USER: ryosuke.ohori@ulusage.com
-      RELAY_PASSWORD: nfbt qhrk ccih mbdw
-      DEBIAN_FRONTEND: noninteractive
-      DEBUG: "1"
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'text2vec-openai'
+      ENABLE_MODULES: 'text2vec-openai'
+      OPENAI_APIKEY: ${OPENAI_API_KEY}
     volumes:
-      - ./config/mailserver/scripts:/usr/local/bin
-    restart: "no"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    stop_grace_period: 10s
-    stop_signal: SIGTERM
-    tty: true
-    stdin_open: true
+      - weaviate_data:/var/lib/weaviate
 
 volumes:
-  postgres_data:
-  registry_data:
-  workflow_data:
-  mailserver_data:
-  mailserver_config:
+  weaviate_data:

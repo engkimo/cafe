@@ -1,218 +1,515 @@
-# CAFE (Composite AI Flow Engine)
+# SynthepseAI Agent
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-[![codecov](https://codecov.io/gh/yourusername/cafe/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/cafe)
-[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://yourusername.github.io/cafe)
-[![Version](https://img.shields.io/github/v/release/yourusername/cafe)](https://github.com/yourusername/cafe/releases)
+## Overview
 
-CAFE is a self-learning, autonomous AI agent capable of automating multi-scale and multi-modal AI models. It dynamically spins up containerized environments as needed, leveraging self-learning capabilities to optimize workflow automation.
+SynthepseAI Agent is an autonomous AI agent system with self-correction capabilities. Simply by setting a goal, the agent automatically plans and executes tasks while learning from and correcting errors to achieve the objective. It is built on an extended version of the manus architecture and incorporates a learning system utilizing GraphRAG, enabling continuous improvement based on experience.
 
-## Features
+### Key Features
 
-- Chat-based workflow creation
-- Multi-service integration (Gmail, Slack, etc.)
-- Containerized service execution
-- Database-driven execution history management
+- **Automated Task Planning and Execution**: Decomposes complex goals into smaller tasks and automatically generates and executes Python code for each task.
+- **Self-Correction Ability**: Detects errors during execution and attempts to automatically correct them.
+- **Learning from Experience**: Learns from past error patterns and successful code implementations to apply to new tasks.
+- **Module Reuse**: Extracts reusable modules from successful code to utilize in new tasks.
+- **Isolated Execution Environments**: Each project runs in its own virtual environment to prevent dependency conflicts.
 
-### Supported Use Cases
+## System Requirements
 
-1. Web Scraping → Image OCR → LLM Summarization
-   - Collect articles and images from news sites and blogs
-   - Extract text from scraped images (ads, screenshots)
-   - Generate summaries and key points using LLMs
-   - Create dashboards for easy content viewing
+### Mandatory Environment
+- Python 3.9 or higher
+- SQLite 3.x
+- Docker (required when using Weaviate)
 
-2. Speech Recognition → Sentiment Analysis → Response Generation
-   - Convert meeting audio and customer calls to text
-   - Analyze emotional context (positive, negative, neutral)
-   - Display real-time alerts for customer emotions
-   - Generate appropriate responses based on sentiment
-   - Utilize FAQ and past cases for chatbot responses
-
-3. Video Information Extraction → Topic Classification → LLM Summarization
-   - Convert video audio to text (ASR)
-   - Extract key frames and visualize subtitles
-   - Classify content by theme (sports, politics, entertainment)
-   - Label video segments by topic
-   - Generate highlights and quick summaries
-
-4. Text Analysis → Intent Detection → Automated Tagging
-   - Process emails and social media posts
-   - Classify multiple intents (complaints, inquiries, requests)
-   - Analyze keywords and context
-   - Auto-tag with priority levels and support requirements
-   - Streamline customer support workflow
-
-5. Image Classification → Similar Image Search → Recommendation Generation
-   - Classify uploaded images using pre-trained models
-   - Extract metadata (clothing category, color, brand features)
-   - Search database for similar images
-   - Generate recommendations based on visual information
-   - Implement visual-based recommendation engine
-
-6. Email Automation Support
-   - ChatGPT + Gmail integration
-   - Template-based auto-generation
-
-7. Chat Task Extraction (Slack, Teams)
-   - Automatic chat history summarization
-   - Automated ToDo list generation
-
-8. Meeting-Related Tasks
-   - Schedule coordination automation
-   - Minutes generation
-   - Follow-up email creation
-
-9. Additional Features
-   - Proposal & presentation draft creation
-   - Telemarketing list generation
-   - Automated customer inquiry handling
-
-## Architecture
-
-- Frontend: React + Vite
-- Backend: FastAPI + SQLAlchemy
-- Database: PostgreSQL
-- Container Management: Docker
-
-## Setup
-
-### Prerequisites
-
-- Python 3.11 or higher
-- Docker & Docker Compose
-- PostgreSQL
-- [Rye](https://rye-up.com/guide/installation/) (Python package manager)
-
-### Environment Setup
-
-1. Clone repository and install dependencies
-
+### Dependencies
 ```bash
-git clone [repository-url]
-cd cafe
-rye sync
+openai>=1.0.0
+weaviate-client>=3.15.0
+tenacity>=8.0.0
+python-dotenv>=1.0.0
+sqlite3
 ```
 
-2. Configure environment variables
+## Installation
 
+### 1. Clone the Repository
 ```bash
-cp .env.example .env
+git clone https://github.com/yourusername/synthepseai-agent.git
+cd synthepseai-agent
 ```
 
-Required environment variables in .env:
-- DATABASE_URL
-- OPENAI_API_KEY
-- Other necessary API keys
-
-3. Launch Docker containers
-
+### 2. Set Up the Virtual Environment
 ```bash
-docker-compose up -d
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-4. Run database migrations
-
+### 3. Install Dependencies
 ```bash
-cd server
-rye run alembic upgrade head
+pip install -r requirements.txt
 ```
 
-5. Start development servers
-
-Backend:
-```bash
-rye run python -m server.main
+### 4. Configure Environment Variables
+Create a `.env` file and include the following:
+```dotenv
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4-turbo
 ```
 
-Frontend:
+### 5. Set Up Weaviate (for GraphRAG)
 ```bash
-npm run dev
+docker-compose -f weaviate-docker-compose.yml up -d
 ```
 
-## Development Guide
+## Usage
 
-### Adding New Workflows
+### Basic Execution
 
-1. Service Integration
-   - Add Docker image generation logic in server/docker_manager.py
-   - Update .env.example with required variables
-
-2. Adding New Task Types
-   - Add new tools to WorkflowManager class's available_tools
-   - Create Docker images as needed
-
-### Database Migrations
-
-1. Model Changes
-   - Update SQLAlchemy models in server/models.py
-
-2. Generate Migration
 ```bash
-cd server
-alembic revision --autogenerate -m "description of changes"
+# Run with a specified goal
+python main.py --goal "Create a CSV file, perform data analysis, and generate graphs for the results"
+
+# Run with a specified workspace directory
+python main.py --goal "Perform web scraping to collect data" --workspace ./custom_workspace
+
+# Run in debug mode
+python main.py --goal "Process a text file and compute statistics" --debug
 ```
 
-3. Apply Migration
+### Example Run
+
 ```bash
-alembic upgrade head
+# Execute a sample task
+python example.py
 ```
+
+### Enabling the Learning Feature
+
+```bash
+# Enable learning using GraphRAG
+python main.py --goal "Extract text from image files" --weaviate-url "http://localhost:8080"
+```
+
+## Project Structure
+
+```
+synthepseai-agent/
+├── main.py                    # Main entry point
+├── example.py                 # Sample execution script
+├── config.json                # Configuration file
+├── requirements.txt           # Dependency list
+├── weaviate-docker-compose.yml # Weaviate configuration file
+├── core/                      # Core modules
+│   ├── auto_plan_agent.py     # Self-correcting agent
+│   ├── base_agent.py          # Base agent
+│   ├── base_flow.py           # Base flow
+│   ├── graph_rag_manager.py   # GraphRAG manager
+│   ├── llm.py                 # LLM integration
+│   ├── modular_code_manager.py # Module manager
+│   ├── planning_flow.py       # Planning flow
+│   ├── project_environment.py # Project environment
+│   ├── script_templates.py    # Script templates
+│   ├── task_database.py       # Task database
+│   ├── tool_agent.py          # Tool agent
+│   └── tools/                 # Tool modules
+│       ├── base_tool.py       # Base tool
+│       ├── file_tool.py       # File operations
+│       ├── package_manager.py # Package management
+│       ├── planning_tool.py   # Planning tool
+│       ├── python_execute.py  # Python execution
+│       ├── python_project_execute.py # Project environment execution
+│       ├── docker_execute.py  # Docker execution
+│       └── system_tool.py     # System operations
+└── workspace/                 # Working directory
+    ├── modules/               # Reusable modules
+    └── project_{plan_id}/     # Project environment
+        ├── venv/              # Virtual environment
+        ├── task_{task_id}.py  # Task script
+        ├── requirements.txt   # Dependencies
+        └── installed_packages.json # Installed packages
+```
+
+## Architecture and Design Philosophy
+
+SynthepseAI Agent is composed of the following main components:
+
+### System Architecture Overview
+
+```mermaid
+flowchart TD
+    title[SynthepseAI System Architecture]
+    
+    %% Main Systems
+    UserInput[User Input]
+    ExtSvc[External Services]
+    FlowSys[Flow System]
+    AgentSys[Agent System]
+    ToolSys[Tool System]
+    
+    %% Connections
+    UserInput --> FlowSys
+    ExtSvc --> FlowSys
+    FlowSys --> AgentSys
+    AgentSys --> ToolSys
+    ToolSys --> ExtSvc
+    
+    %% Styling
+    classDef default fill:#f0f0ff,stroke:#333,stroke-width:1px
+    classDef title fill:none,stroke:none,color:#333,font-size:18px
+    
+    class title title
+```
+
+### Basic Execution Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Main
+    participant SynthepseAI
+    participant LLM
+    participant Tools
+    
+    User->>Main: Input Prompt
+    Main->>SynthepseAI: run(prompt)
+    
+    rect rgb(240, 240, 255)
+        Note over SynthepseAI,LLM: Loop [Until max steps]
+        SynthepseAI->>LLM: Execute Step
+        LLM-->>SynthepseAI: Next Action
+        
+        alt Tool Execution
+            SynthepseAI->>Tools: Tool Invocation
+            Tools-->>SynthepseAI: Result
+        end
+    end
+    
+    SynthepseAI->>SynthepseAI: Generate Response
+    SynthepseAI-->>Main: Final Result
+    Main-->>User: Output
+```
+
+### Planning Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant PlanningFlow
+    participant PlanningTool
+    participant Executor
+    participant LLM
+    
+    User->>PlanningFlow: execute(input_text)
+    PlanningFlow->>PlanningTool: Create Plan
+    PlanningTool-->>PlanningFlow: Plan Information
+    
+    rect rgb(240, 240, 255)
+        Note over PlanningFlow,LLM: Loop [For each step]
+        PlanningFlow->>PlanningFlow: Get Current Step Info
+        PlanningFlow->>Executor: Execute Step
+        Executor->>LLM: Execute Task
+        LLM-->>Executor: Result
+        Executor-->>PlanningFlow: Execution Result
+        PlanningFlow->>PlanningTool: Mark Step Complete
+    end
+    
+    PlanningFlow->>PlanningFlow: Process Plan Completion
+    PlanningFlow-->>User: Final Result
+```
+
+### Class Structure
+
+```mermaid
+classDiagram
+    class BaseFlow {
+        +agents: Dict[str, BaseAgent]
+        +primary_agent_key: str
+        +primary_agent: BaseAgent
+        +execute(input_text: str) : str
+        +get_agent(key: str) : BaseAgent
+        +add_agent(key: str, agent: BaseAgent) : void
+    }
+    
+    class PlanningFlow {
+        +llm: LLM
+        +planning_tool: PlanningTool
+        +executor_keys: List[str]
+        +active_plan_id: str
+        +current_step_index: int
+        +execute(input_text: str) : str
+        +get_executor(step_type: str) : BaseAgent
+    }
+    
+    class BaseAgent {
+        +name: str
+        +description: str
+        +system_prompt: str
+        +next_step_prompt: str
+        +llm: LLM
+        +memory: Memory
+        +state: AgentState
+        +run(request: str) : str
+        +step() : str
+    }
+    
+    class ToolCallAgent {
+        +available_tools: ToolCollection
+        +step() : str
+        +handle_tool_calls(tool_calls) : str
+    }
+    
+    class SynthepseAI {
+        +name: str = "SynthepseAI"
+        +description: str
+        +system_prompt: str
+        +next_step_prompt: str
+        +available_tools: ToolCollection
+    }
+    
+    class BaseTool {
+        +name: str
+        +description: str
+        +parameters: dict
+        +execute(**kwargs) : Any
+        +to_param() : Dict
+    }
+    
+    class PlanningTool {
+        +name: str = "planning"
+        +description: str
+        +parameters: dict
+        +plans: dict
+        +_current_plan_id: str
+        +execute(command, plan_id, ...) : ToolResult
+    }
+    
+    BaseFlow <|-- PlanningFlow
+    BaseAgent <|-- ToolCallAgent
+    ToolCallAgent <|-- SynthepseAI
+    BaseTool <|-- PlanningTool
+    
+    PlanningFlow --> BaseAgent
+    ToolCallAgent --> BaseTool
+```
+
+### Agent Execution System
+
+```mermaid
+flowchart TD
+    UserInput[User Input] --> Agent[Agent]
+    
+    Agent --> ActionDecision{Action Decision}
+    
+    ActionDecision -->|Tool Execution| ToolInvocation[Tool Invocation]
+    ActionDecision -->|Direct Response| ResponseGen[Response Generation]
+    
+    ToolInvocation --> ToolCall[Tool Call]
+    ToolCall --> ResultProc[Result Processing]
+    
+    ResultProc --> Agent
+    ResponseGen --> FinalResponse[Final Response]
+    
+    %% Styling
+    classDef default fill:#f0f0ff,stroke:#333,stroke-width:1px
+    classDef decision fill:#f5f5ff,stroke:#333,stroke-width:1px,shape:diamond
+    
+    class ActionDecision decision
+```
+
+### Planning System
+
+```mermaid
+flowchart TD
+    UserReq[User Request] --> PlanCreation[Plan Creation]
+    PlanCreation --> StepList[Step List Creation]
+    StepList --> GetCurrent[Get Current Step]
+    
+    GetCurrent --> AgentSelect[Select Appropriate Agent]
+    AgentSelect --> ExecStep[Execute Step]
+    
+    ExecStep --> Complete{Completed?}
+    Complete -->|No| GetCurrent
+    Complete -->|Yes| FinalResult[Generate Final Result]
+    
+    %% Styling
+    classDef default fill:#f0f0ff,stroke:#333,stroke-width:1px
+    classDef decision fill:#f5f5ff,stroke:#333,stroke-width:1px,shape:diamond
+    
+    class Complete decision
+```
+
+### Tool Integration System
+
+```mermaid
+flowchart TD
+    Agent[Agent] --> ToolColl[Tool Collection]
+    
+    ToolColl --> ToolSelect{Tool Selection}
+    
+    ToolSelect --> PythonExec[Python Execution]
+    ToolSelect --> WebBrowsing[Web Browsing]
+    ToolSelect --> GoogleSearch[Google Search]
+    ToolSelect --> FileOps[File Operations]
+    ToolSelect --> Planning[Planning]
+    
+    PythonExec --> Result[Result]
+    WebBrowsing --> Result
+    GoogleSearch --> Result
+    FileOps --> Result
+    Planning --> Result
+    
+    Result --> Agent
+    
+    %% Styling
+    classDef default fill:#f0f0ff,stroke:#333,stroke-width:1px
+    classDef decision fill:#f5f5ff,stroke:#333,stroke-width:1px,shape:diamond
+    
+    class ToolSelect decision
+```
+
+## Main Components
+
+### 1. Agent System
+- **BaseAgent**: The base class for all agents.
+- **ToolAgent**: An agent with tool invocation capabilities.
+- **AutoPlanAgent**: An agent capable of automatic planning, execution, and self-repair.
+
+### 2. Flow System
+- **BaseFlow**: The base class for flows.
+- **PlanningFlow**: Manages planning and execution flows.
+
+### 3. Tool System
+- **PlanningTool**: For planning and managing tasks.
+- **PythonExecuteTool**: For executing Python code.
+- **PythonProjectExecuteTool**: For executing Python code in a project environment.
+- **FileTool**: For file operations.
+- **DockerExecuteTool**: For executing Docker commands.
+- **SystemTool**: For system operations.
+
+### 4. Learning System
+- **GraphRAGManager**: For learning and retrieving error and code patterns.
+- **ModularCodeManager**: For managing reusable code modules.
+
+### 5. Database
+- **TaskDatabase**: An SQLite-based task and plan manager.
+
+### 6. Environment Management
+- **ProjectEnvironment**: Manages virtual environments on a per-project basis.
+
+## Workflow
+
+1. **Goal Input**: The user inputs the goal to be achieved.
+2. **Plan Generation**: The goal is broken down into smaller tasks.
+3. **Code Generation**: Python code is automatically generated for each task.
+4. **Environment Setup**: An isolated environment is prepared for task execution.
+5. **Task Execution**: Tasks are executed sequentially with dependency management.
+6. **Error Handling**: Failed tasks are automatically corrected.
+7. **Learning**: Successful patterns are recorded for future tasks.
+8. **Result Reporting**: A summary of the execution results is generated and returned.
+
+## Learning System
+
+SynthepseAI Agent incorporates two learning mechanisms:
+
+### GraphRAG Learning System
+- **Error Pattern Learning**: Records encountered errors and successful fixes.
+- **Task Template Learning**: Accumulates successful code patterns for each task type.
+- **Contextual Retrieval**: Uses similar task resolutions to enhance prompt performance.
+
+### Module Reuse System
+- **Module Extraction**: Extracts reusable code from successful tasks.
+- **Dependency Management**: Maintains dependencies between modules.
+- **Contextual Application**: Automatically incorporates relevant modules into new tasks.
+
+## Extending the System
+
+### Adding New Tools
+
+1. Create a new tool class in the `core/tools/` directory.
+2. Inherit from `BaseTool` and implement the necessary methods.
+3. Register the new tool with `AutoPlanAgent`.
+
+```python
+# Example of creating a new tool
+class NewTool(BaseTool):
+    def __init__(self):
+        super().__init__("new_tool", "Description of the new tool")
+        self.parameters = {...}
+    
+    def execute(self, **kwargs) -> ToolResult:
+        # Implementation...
+        return ToolResult(...)
+
+# Registering the tool
+agent.available_tools.add_tool(new_tool)
+```
+
+### Extending the Learning System
+
+1. Add new search and storage methods to `GraphRAGManager`.
+2. Extend the Weaviate schema to store new data types.
 
 ## Troubleshooting
 
 ### Common Issues and Solutions
 
-1. Docker Issues
-   - Verify Docker daemon status
-   ```bash
-   docker ps
-   ```
-   - Check for port conflicts
-   ```bash
-   docker-compose ps
-   ```
+#### OpenAI API Connection Error
+```
+Error: OpenAI API connection failed...
+```
+*Solution*: Verify that the API key is correctly set. Also, check your network connection and the status of the OpenAI API.
 
-2. Database Connection Errors
-   - Check PostgreSQL container status
-   ```bash
-   docker-compose logs db
-   ```
-   - Verify environment variables
-   ```bash
-   echo $DATABASE_URL
-   ```
+#### ModuleNotFoundError
+```
+ModuleNotFoundError: No module named 'some_module'
+```
+*Solution*: Manually install the required package or use the `--debug` flag for more details.
 
-3. API Authentication Errors
-   - Check environment variables
-   ```bash
-   echo $OPENAI_API_KEY
-   ```
-   - Verify API key validity
-   ```bash
-   curl https://api.openai.com/v1/models \
-     -H "Authorization: Bearer $OPENAI_API_KEY"
-   ```
+#### SQLite Database Error
+```
+sqlite3.OperationalError: no such table...
+```
+*Solution*: Ensure that the database file exists. If necessary, delete it and create a new database.
+
+#### Weaviate Connection Error
+```
+Error connecting to Weaviate...
+```
+*Solution*: Verify that the Weaviate container is running by executing `docker-compose -f weaviate-docker-compose.yml ps` to check its status.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License
 
-Copyright (c) 2025 CAFE Contributors
+## Contribution Guidelines
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. Fork the repository.
+2. Create a new branch (`git checkout -b feature/amazing-feature`).
+3. Commit your changes (`git commit -m 'Add amazing feature'`).
+4. Push the branch (`git push origin feature/amazing-feature`).
+5. Create a Pull Request.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+## Developer Information
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+### Code Style
+- Adheres to PEP 8 coding style.
+- Docstrings are required for all classes and public methods.
+- Code formatting follows the Black style.
+
+### Testing
+```bash
+# Run tests
+python -m unittest discover tests
+```
+
+### Documentation Generation
+```bash
+# Generate API documentation
+sphinx-build -b html docs/source docs/build
+```
+
+---
+
+**Note**: This system is under development and may behave unexpectedly. Please create backups of any critical data before processing.
+
+**Developer**: Your Name/Organization
+
+**Version**: 0.1.0

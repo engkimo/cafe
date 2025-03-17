@@ -1,2 +1,0 @@
-# すべてのメールをGmailを通じて送信
-@cafe.local smtp:[smtp.gmail.com]:587

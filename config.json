@@ -1,0 +1,32 @@
+{
+    "openai_api_key": "",
+    "model": "gpt-4o",
+    "temperature": 0.7,
+    "workspace": "./workspace",
+    "database": {
+      "type": "json",
+      "path": "./workspace/tasks.json"
+    },
+    "logging": {
+      "level": "INFO",
+      "file": "./logs/agent.log"
+    },
+    "tools": {
+      "python_execute": {
+        "enabled": true,
+        "timeout": 30
+      },
+      "file_tool": {
+        "enabled": true,
+        "restricted_paths": []
+      },
+      "planning_tool": {
+        "enabled": true,
+        "max_steps": 10
+      }
+    },
+    "error_handling": {
+      "max_retry_attempts": 3,
+      "error_correction": true
+    }
+  }
