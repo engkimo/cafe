@@ -32,8 +32,8 @@ sqlite3
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/synthepseai-agent.git
-cd synthepseai-agent
+git clone https://github.com/yourusername/SynthepseAI.git
+cd SynthepseAI
 ```
 
 ### 2. Set Up the Virtual Environment
@@ -91,7 +91,7 @@ python main.py --goal "Extract text from image files" --weaviate-url "http://loc
 ## Project Structure
 
 ```
-synthepseai-agent/
+SynthepseAI/
 ├── main.py                    # Main entry point
 ├── example.py                 # Sample execution script
 ├── config.json                # Configuration file
@@ -509,7 +509,5 @@ sphinx-build -b html docs/source docs/build
 ---
 
 **Note**: This system is under development and may behave unexpectedly. Please create backups of any critical data before processing.
-
-**Developer**: Your Name/Organization
 
 **Version**: 0.1.0
