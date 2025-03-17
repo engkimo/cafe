@@ -96,7 +96,7 @@ synthepseai-agent/
 ├── example.py                 # Sample execution script
 ├── config.json                # Configuration file
 ├── requirements.txt           # Dependency list
-├── weaviate-docker-compose.yml # Weaviate configuration file
+├── docker-compose.yml # Weaviate configuration file
 ├── core/                      # Core modules
 │   ├── auto_plan_agent.py     # Self-correcting agent
 │   ├── base_agent.py          # Base agent
